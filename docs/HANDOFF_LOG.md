@@ -11,7 +11,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 3 | 2026-11-23 | 1 | testing | Revisión independiente de la Fase 1 y retest de QA-001 a QA-003 | **PASS** en AC-01 a AC-06, AC-17, SEC-01 y SEC-02. 29 casos de reglas en el emulador de Firestore, 0 fallos. Playwright: 0 errores de consola y sin scroll horizontal a 360 px | Informe Testing #3 (clon limpio en /tmp) | QA-001 a QA-003 cerrados |
 | 4 | 2026-11-23 | 2 | develop | Login con Email/Contraseña y Google, CRUD en `users/{uid}/quests`, estadísticas, filtros, emuladores y tests de reglas | Entregado en el commit `292512a`. lint, typecheck, test 39/39, test:rules 34/34 y build OK. La prueba de mutación de las reglas hizo fallar 2 tests, como se esperaba. El smoke con Playwright y emuladores pasó. Google no se probó de verdad | Entrega Develop Fase 2 | #5 |
 | 5 | 2026-11-23 | 2 | testing | Revisión independiente de la Fase 2 en un clon limpio, con E2E propio (Playwright + emuladores de Auth y Firestore) y dos usuarios | **BLOCKED, sin FAIL**. Todos los criterios comprobables pasan: E2E 54 de 55 (el restante eran 400 esperados de las pruebas negativas), test:rules 34/34 y aislamiento A/B por REST (403 en la ruta ajena, 200 en la propia). Quedan BLOCKED hasta producción Google real (AC-10), producción (AC-16) y Node 24 en Vercel (AC-36). Defectos nuevos QA-004 y QA-005 | Informe Testing #5 | #7 |
-| 6 | 2026-11-23 | 3 | develop | Corregir QA-004 y QA-005; AC-22 a AC-26 (estados, validación, responsive, accesibilidad, escrituras sin conexión) | Entregado en el commit `70af2de`. lint, typecheck, test 56/56, test:rules 34/34 y build OK. Smoke con Playwright y emuladores 39/39, incluidos modo sin conexión, reglas que rechazan escrituras y foco tras borrar | Entrega Develop Fase 3 | Pendiente: #7 |
+| 6 | 2026-11-23 | 3 | develop | Corregir QA-004 y QA-005; AC-22 a AC-26 (estados, validación, responsive, accesibilidad, escrituras sin conexión) | Entregado en el commit `70af2de`. lint, typecheck, test 56/56, test:rules 34/34 y build OK. Smoke con Playwright y emuladores 39/39, incluidos modo sin conexión, reglas que rechazan escrituras y foco tras borrar | Entrega Develop Fase 3 | #7 |
+| 7 | 2026-11-23 | 3 | testing | Revisión independiente de la Fase 3 y retest de QA-004 y QA-005. E2E propio: foco, sin conexión, rechazos por reglas, contraste WCAG medido, 360/1280 px | **FAIL**. QA-004 y QA-005 PASS. AC-22, AC-23, AC-24 y AC-26 PASS. AC-25 FAIL por un contraste de 4.40:1 (QA-007). Además, una incoherencia tras un rechazo tardío (QA-008). Producción BLOCKED: el proxy no la alcanza | Informe Testing #7 | Pendiente: #10 |
 | 8 | 2026-11-23 | 4 | develop | E2E versionado con Playwright (AC-31), README (AC-32), auditoría de dependencias (SEC-05 en `docs/SECURITY.md`) y SEC-04 | Entregado en el commit `1c1f831`. lint, typecheck, test 56/56, test:rules 34/34, test:e2e 5/5 y build OK. El E2E destapó QA-006 y quedó corregido en el mismo commit. npm audit sigue con 4 altos, justificados (grpc-js, sin versión que lo corrija) | Entrega Develop Fase 4 | Pendiente: #9 |
 
 ## Hallazgos y correcciones
@@ -21,9 +22,11 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-001 | media | SEC-02 | En `create`, `createdAt` y `updatedAt` aceptan cualquier timestamp; no se exige `request.time` (`firestore.rules` L15, L18) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-002 | media | SEC-02, AC-13, AC-14 | En `update` no se exige `updatedAt == request.time` (L19-20) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-003 | baja | AC-22, SEC-02 | Un título formado solo por espacios pasa las reglas (L11) | #1 | `c4062da` | PASS (#3, emulador) |
-| QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | `70af2de` | Pendiente: #7 |
-| QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | `70af2de` | Pendiente: #7 |
+| QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | `70af2de` | PASS (#7) |
+| QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | `70af2de` | PASS (#7) |
 | QA-006 | media | AC-10b | Al cerrar sesión y volver a entrar sin recargar, el botón "Cerrando…" se quedaba deshabilitado. Lo detectó el E2E de Develop en la Fase 4 | #8 | `1c1f831` (`SignedInBar` con `key=uid`) | Pendiente: #9 |
+| QA-007 | baja | AC-25 | En modo oscuro, el badge "+N XP ganados" tiene un contraste de 4.40:1 (`QuestItem.tsx` L95) | #7 | Pendiente | — |
+| QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | Pendiente | — |
 
 ## Avisos abiertos
 
@@ -31,6 +34,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 - AC-36 (antes AC-NEW-05): firebase 13 pide Node ≥24.12, así que hay que declarar `engines` y usar Node 24 en Vercel.
 
 - AC-26 (observación de #5): `addDoc`/`updateDoc` esperan la confirmación del servidor, así que sin conexión el botón se quedaría en "Creando…" para siempre. Se revisa en la Fase 3.
+
+- Numeración: Testing propuso QA-006 y QA-007 en #7, pero el Orquestador ya había asignado QA-006 al defecto que encontró Develop en #8. Los dos de Testing quedan registrados como QA-007 y QA-008.
 
 ## Cambios en los criterios
 
