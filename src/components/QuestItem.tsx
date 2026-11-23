@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { DIFFICULTY_LABELS, xpFor, type Quest, type QuestInput } from "@/lib/quests";
 import type { WriteOutcome } from "@/lib/writes";
 import { QuestForm } from "./QuestForm";
-import { DIFFICULTY_STYLES, focusRing, mutedText, Spinner } from "./ui";
+import { buttonClass, CheckGlyph, mutedText, Spinner, TerrainIcon } from "./ui";
 
 interface QuestItemProps {
   quest: Quest;
@@ -13,8 +13,6 @@ interface QuestItemProps {
   onRequestDelete: (quest: Quest) => void;
   errorMessage: (error: unknown) => string;
 }
-
-const smallButton = `inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`;
 
 export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessage }: QuestItemProps) {
   const [editing, setEditing] = useState(false);
@@ -52,21 +50,20 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
     }
   }
 
-  const styles = DIFFICULTY_STYLES[quest.difficulty];
   const xp = xpFor(quest.difficulty);
+  const titleId = `quest-${quest.id}-title`;
 
   return (
     <li
       data-quest-id={quest.id}
+      data-tour={editing ? undefined : "quest-card"}
       tabIndex={-1}
-      aria-labelledby={`quest-${quest.id}-title`}
-      className={`scroll-mt-4 rounded-2xl border border-l-4 border-slate-200 p-4 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 dark:border-slate-800 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-slate-950 ${styles.accent} ${
-        quest.completed ? "bg-slate-50 dark:bg-slate-900/60" : "bg-white dark:bg-slate-900"
-      }`}
+      aria-labelledby={titleId}
+      className={`min-w-0 scroll-mt-6 rounded-card border border-ink/10 p-4 sm:p-5 ${quest.completed ? "bg-paper" : "bg-surface"}`}
     >
       {editing ? (
         <>
-          <h3 id={`quest-${quest.id}-title`} className="sr-only">
+          <h3 id={titleId} className="sr-only">
             Editando: {quest.title}
           </h3>
           <QuestForm
@@ -84,52 +81,50 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
           />
         </>
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles.badge}`}>
-              {DIFFICULTY_LABELS[quest.difficulty]}
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="inline-flex items-center gap-1.5 text-small font-semibold text-ink">
+              <TerrainIcon difficulty={quest.difficulty} />
+              <span>{DIFFICULTY_LABELS[quest.difficulty]}</span>
             </span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
-                quest.completed
-                  ? "bg-indigo-700 text-white dark:bg-indigo-400 dark:text-slate-950"
-                  : "bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800"
-              }`}
-            >
-              {quest.completed ? `+${xp} XP ganados` : `${xp} XP`}
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                quest.completed
-                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-                  : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-              }`}
-            >
-              {quest.completed ? "Completada" : "Activa"}
-            </span>
-            {quest.pendingSync && (
-              <span className="rounded-full border border-dashed border-slate-400 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-500 dark:text-slate-300">
-                Pendiente de sincronizar
+            {quest.completed ? (
+              <span className="inline-flex items-center rounded-full bg-marker px-2.5 py-0.5 text-small font-semibold tabular-nums text-on-marker">
+                +{xp} XP<span className="sr-only"> ganados</span>
               </span>
+            ) : (
+              <span className={`text-small tabular-nums ${mutedText}`}>{xp} XP</span>
             )}
+            <span className="ml-auto inline-flex items-center gap-2">
+              {quest.pendingSync && (
+                <span className={`rounded-full border border-dashed border-line px-2.5 py-0.5 text-small ${mutedText}`}>
+                  Pendiente de sincronizar
+                </span>
+              )}
+              {quest.completed ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-contour px-2.5 py-0.5 text-small font-semibold text-ink">
+                  <CheckGlyph className="size-3.5 text-contour" />
+                  Hecha
+                </span>
+              ) : (
+                <span className={`rounded-full border border-line px-2.5 py-0.5 text-small ${mutedText}`}>Activa</span>
+              )}
+            </span>
           </div>
           <div className="min-w-0">
             <h3
-              id={`quest-${quest.id}-title`}
-              className={`text-base font-semibold wrap-anywhere ${
-                quest.completed ? "text-slate-600 line-through decoration-2 dark:text-slate-400" : ""
+              id={titleId}
+              className={`font-display text-title font-semibold tracking-snug wrap-anywhere ${
+                quest.completed ? `${mutedText} line-through decoration-1` : "text-ink"
               }`}
             >
               {quest.title}
             </h3>
             {quest.description && (
-              <p className={`mt-1 whitespace-pre-line text-sm wrap-anywhere ${mutedText}`}>
-                {quest.description}
-              </p>
+              <p className={`mt-1 whitespace-pre-line text-small wrap-anywhere ${mutedText}`}>{quest.description}</p>
             )}
           </div>
           {toggleError && (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+            <p role="alert" className="text-small text-danger">
               {toggleError}
             </p>
           )}
@@ -140,13 +135,9 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
               disabled={toggling}
               aria-busy={toggling || undefined}
               aria-label={`${quest.completed ? "Reabrir" : "Completar"} misión: ${quest.title}`}
-              className={`${smallButton} ${
-                quest.completed
-                  ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-                  : "border-indigo-700 bg-indigo-700 text-white hover:bg-indigo-800"
-              }`}
+              className={buttonClass(quest.completed ? "secondary" : "primary", "sm")}
             >
-              {toggling && <Spinner className="h-3.5 w-3.5" />}
+              {toggling && <Spinner className="size-3.5" />}
               {toggling ? "Guardando…" : quest.completed ? "Reabrir" : "Completar"}
             </button>
             <button
@@ -154,7 +145,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
               type="button"
               onClick={() => setEditing(true)}
               aria-label={`Editar misión: ${quest.title}`}
-              className={`${smallButton} border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
+              className={buttonClass("secondary", "sm")}
             >
               Editar
             </button>
@@ -162,7 +153,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
               type="button"
               onClick={() => onRequestDelete(quest)}
               aria-label={`Eliminar misión: ${quest.title}`}
-              className={`${smallButton} border-red-300 bg-white text-red-800 hover:bg-red-50 dark:border-red-800 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/40`}
+              className={buttonClass("dangerQuiet", "sm")}
             >
               Eliminar
             </button>

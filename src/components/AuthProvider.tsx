@@ -16,6 +16,7 @@ import {
   type AuthStatus,
 } from "@/lib/authState";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
+import { noteSignInResult, seeding } from "@/lib/seeding";
 
 export type { AuthStatus };
 
@@ -54,11 +55,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: "error", user: null, error: translateAuthError(error) });
         },
       );
-      // Si se usó signInWithRedirect, recoge el posible error al volver. Puede
-      // llegar después de montar AuthScreen: esta la lee del contexto (QA-004).
-      getRedirectResult(auth).catch((error: unknown) => {
-        if (active) setState((prev) => withRedirectError(prev, translateAuthError(error)));
-      });
+      // Si se usó signInWithRedirect, recoge el resultado al volver: con una
+      // cuenta nueva deja pendientes las misiones de ejemplo (el coordinador
+      // ignora el aviso repetido de StrictMode). El posible error puede llegar
+      // después de montar AuthScreen: esta la lee del contexto (QA-004).
+      const endSignIn = seeding.beginSignIn();
+      getRedirectResult(auth)
+        .then((credential) => {
+          if (credential) noteSignInResult(credential);
+        })
+        .catch((error: unknown) => {
+          if (active) setState((prev) => withRedirectError(prev, translateAuthError(error)));
+        })
+        .finally(endSignIn);
     } catch (error) {
       queueMicrotask(() =>
         setState({ status: "error", user: null, error: translateAuthError(error) }),

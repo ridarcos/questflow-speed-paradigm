@@ -1,6 +1,7 @@
 "use client";
 
 import { missingFirebaseEnvKeys } from "@/lib/firebase";
+import { mutedText } from "./ui";
 
 /**
  * Aviso de configuración: si faltan variables NEXT_PUBLIC_FIREBASE_*, lo muestra
@@ -14,19 +15,19 @@ export function ConfigNotice() {
   }
 
   return (
-    <div
-      role="alert"
-      className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
-    >
-      <p className="font-semibold">Firebase no está configurado</p>
-      <p className="mt-1 text-sm">
-        Copia <code className="font-mono">.env.example</code> a{" "}
-        <code className="font-mono">.env.local</code> (o define las variables en Vercel) y vuelve a
-        compilar. Faltan:
+    <div role="alert" className="mx-auto w-full max-w-xl rounded-container border border-danger bg-surface p-6">
+      <h2 className="font-display text-title font-bold tracking-tight">Firebase no está configurado</h2>
+      <p className={`mt-2 text-body ${mutedText}`}>
+        Copia <code className="font-semibold text-ink">.env.example</code> a{" "}
+        <code className="font-semibold text-ink">.env.local</code> (o define las variables en Vercel) y vuelve a
+        compilar. Faltan estas variables:
       </p>
-      <ul className="mt-2 list-inside list-disc break-all font-mono text-xs sm:text-sm">
+      <ul className="mt-4 flex flex-col gap-1.5 text-small">
         {missing.map((key) => (
-          <li key={key}>{key}</li>
+          <li key={key} className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-1.5 size-1.5 shrink-0 rounded-full bg-danger" />
+            <code className="min-w-0 font-semibold text-ink wrap-anywhere">{key}</code>
+          </li>
         ))}
       </ul>
     </div>

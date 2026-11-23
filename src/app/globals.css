@@ -1,26 +1,127 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+/*
+ * Sistema visual "Ruta" (docs/DESIGN_DIRECTION.md).
+ *
+ * Solo existen estos tokens: la paleta por defecto de Tailwind, su escala de
+ * texto, sus radios y sus sombras se vacían (`initial`) para que no se puedan
+ * usar por accidente. `static` emite todas las variables en :root aunque no se
+ * usen, así el tema oscuro las puede sobrescribir todas.
+ */
+@theme static {
+  --color-*: initial;
+  --color-paper: #EEF2EC;
+  --color-ink: #1B2A26;
+  --color-contour: #2F6F5E;
+  --color-marker: #F2B134;
+  --color-trail: #3E7CB1;
+  --color-slope: #A8641C;
+  --color-summit: #8E3A52;
+  --color-surface: #F7F9F6;
+  --color-ink-soft: #4B5C57;
+  --color-line: #7A8C86;
+  --color-danger: #A12D2D;
+  --color-on-marker: #1B2A26;
+
+  --font-*: initial;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Escala tipográfica única: 14 / 16 / 20 / 28 / 44 px. */
+  --text-*: initial;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.625rem;
+  --text-heading: 1.75rem;
+  --text-heading--line-height: 2rem;
+  --text-display: 2.75rem;
+  --text-display--line-height: 2.75rem;
+
+  /* Radios por jerarquía: controles 10, tarjetas 14, contenedores 20; chips con rounded-full. */
+  --radius-*: initial;
+  --radius-control: 0.625rem;
+  --radius-card: 0.875rem;
+  --radius-container: 1.25rem;
+
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+
+  --tracking-*: initial;
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
-}
-
+/* Mapa nocturno: mismos nombres, valores de la columna "Oscuro". */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #020617;
-    --foreground: #e2e8f0;
+    --color-paper: #0F1C19;
+    --color-ink: #E4EBE5;
+    --color-contour: #7FC4AE;
+    --color-marker: #F2B134;
+    --color-trail: #8DB9E0;
+    --color-slope: #E0A15A;
+    --color-summit: #E29AB0;
+    --color-surface: #152420;
+    --color-ink-soft: #A6B5AF;
+    --color-line: #5E716B;
+    --color-danger: #F19A8F;
+    --color-on-marker: #1B2A26;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+:root {
+  color-scheme: light dark;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Sin monoespaciadas: el código (nombres de variables) usa la fuente del texto. */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: inherit;
+  }
+
+  ::selection {
+    background-color: var(--color-marker);
+    color: var(--color-on-marker);
+  }
+
+  /* Foco visible: contorno de 2 px en contour con 2 px de separación (QA-013). */
+  :focus-visible {
+    outline: 2px solid var(--color-contour);
+    outline-offset: 2px;
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--color-contour);
+  }
+}
+
+/*
+ * Titular del perfil de ruta: Bricolage estrecha (wdth 82) y con el corte
+ * óptico de titular (opsz 96), fijados a mano en lugar de los automáticos.
+ */
+@utility type-route {
+  font-family: var(--font-display);
+  font-stretch: 82%;
+  font-variation-settings: "opsz" 96;
 }

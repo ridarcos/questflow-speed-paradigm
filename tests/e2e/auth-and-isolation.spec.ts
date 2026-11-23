@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   AUTH_EMULATOR,
   createQuest,
+  EXAMPLE_TITLES,
   FIRESTORE_EMULATOR,
   PASSWORD,
   PROJECT_ID,
@@ -63,7 +64,9 @@ test("aislamiento: dos usuarios no ven ni pueden leer las misiones del otro", as
   await signOut(page);
 
   await signUp(page, emailB);
-  await expect(page.getByText("Aún no tienes misiones")).toBeVisible();
+  // B solo ve sus 4 misiones de ejemplo.
+  for (const title of EXAMPLE_TITLES) await expect(questCard(page, title)).toBeVisible();
+  await expect(page.locator("[data-quest-id]")).toHaveCount(4);
   await expect(page.getByText("Secreto de A")).toHaveCount(0);
   await createQuest(page, "Misión de B");
   await signOut(page);
@@ -71,7 +74,7 @@ test("aislamiento: dos usuarios no ven ni pueden leer las misiones del otro", as
   await signIn(page, emailA);
   await expect(questCard(page, "Secreto de A")).toBeVisible();
   await expect(page.getByText("Misión de B")).toHaveCount(0);
-  await expect(page.locator("[data-quest-id]")).toHaveCount(1);
+  await expect(page.locator("[data-quest-id]")).toHaveCount(5);
 
   // Comprobación directa contra las reglas: con el token de B, la ruta de A da 403.
   const login = async (email: string) => {
@@ -87,8 +90,18 @@ test("aislamiento: dos usuarios no ven ni pueden leer las misiones del otro", as
   const questsOf = (uid: string) =>
     `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/quests`;
 
+  const titlesIn = async (response: { json: () => Promise<unknown> }) =>
+    (((await response.json()) as { documents?: { fields: { title: { stringValue: string } } }[] }).documents ?? [])
+      .map((d) => d.fields.title.stringValue)
+      .sort();
+
   const own = await request.get(questsOf(b.localId), { headers: { Authorization: `Bearer ${b.idToken}` } });
   expect(own.status()).toBe(200);
+  // SEC-10: cada colección contiene solo lo suyo (sus 4 de ejemplo y lo que creó).
+  expect(await titlesIn(own)).toEqual([...EXAMPLE_TITLES, "Misión de B"].sort());
+  const ownA = await request.get(questsOf(a.localId), { headers: { Authorization: `Bearer ${a.idToken}` } });
+  expect(ownA.status()).toBe(200);
+  expect(await titlesIn(ownA)).toEqual([...EXAMPLE_TITLES, "Secreto de A"].sort());
   const cross = await request.get(questsOf(a.localId), { headers: { Authorization: `Bearer ${b.idToken}` } });
   expect(cross.status()).toBe(403);
   const anonymous = await request.get(questsOf(a.localId));

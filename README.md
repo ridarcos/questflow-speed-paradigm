@@ -3,13 +3,15 @@
 QuestFlow es una aplicación web para organizar **misiones personales** y ganar XP al completarlas. Cada visitante entra con email y contraseña o con Google, y ve solo sus propias misiones. Puede crearlas, editarlas, completarlas, reabrirlas, filtrarlas y eliminarlas. Los datos se guardan en Firestore y se actualizan en vivo.
 
 - **Producción:** https://questflow-speed-paradigm-sandy.vercel.app
-- **XP por dificultad:** Fácil 10, Media 25, Difícil 50. Solo suman las misiones completadas.
+- **XP por terreno:** Sendero 10, Ladera 25, Cumbre 50. Solo suman las misiones completadas. En Firestore el terreno se sigue guardando como `difficulty` = `easy|medium|hard`.
+- **Cuentas nuevas:** empiezan con 4 misiones de ejemplo y un tutorial de 5 pasos (ver [Misiones de ejemplo y tutorial](#misiones-de-ejemplo-y-tutorial)).
 - **Validación:** el título debe tener de 1 a 80 caracteres tras `trim`, y la descripción hasta 280. El cliente y `firestore.rules` aplican las mismas reglas.
 
 ## Stack
 
 - [Next.js](https://nextjs.org/) (App Router, `src/`) + React + TypeScript en modo `strict`
-- Tailwind CSS
+- Tailwind CSS 4 con los tokens del sistema "Ruta" en `src/app/globals.css` (`@theme`, tema claro y oscuro con `prefers-color-scheme`)
+- Fuentes por npm, servidas desde el mismo origen: Bricolage Grotesque (`@fontsource-variable/bricolage-grotesque/standard.css`, ejes opsz, wdth y wght) para titulares y cifras, e Instrument Sans para el resto. Sin Google Fonts
 - Firebase JS SDK modular: Authentication (Email/Contraseña y Google) y Cloud Firestore
 - Vitest (tests unitarios y de reglas con `@firebase/rules-unit-testing`) y Playwright (E2E)
 - Firebase Emulator Suite para tests sin tocar el proyecto real
@@ -38,9 +40,39 @@ No hay backend propio. La página se prerenderiza como estática y todo lo demá
 - `src/lib/firebase.ts` es el único punto de inicialización. Usa `getApps()` y lee solo `NEXT_PUBLIC_FIREBASE_*`. Si falta alguna variable, la UI muestra un aviso de configuración en lugar de romperse.
 - `src/lib/questsRepo.ts` hace el acceso a datos. La ruta se construye siempre con el UID de la sesión actual.
 - `src/lib/quests.ts` contiene la lógica pura: XP, validación, filtros, estadísticas y niveles.
+- `src/lib/routeProfile.ts` calcula la geometría del perfil de ruta (función pura y testeada) y `src/lib/contours.ts` las curvas de nivel decorativas del acceso.
+- `src/lib/exampleQuests.ts`, `src/lib/seedCoordinator.ts` y `src/lib/seeding.ts` crean las misiones de ejemplo; `src/lib/tutorial.ts` define los pasos y la colocación del tutorial, y `src/lib/localFlags.ts` es el único módulo que usa `localStorage`.
 - `firestore.rules` es el modelo de seguridad. Más detalles en [docs/SECURITY.md](docs/SECURITY.md).
 
 Documento de cada misión: `title`, `description`, `difficulty` (`easy|medium|hard`), `completed`, `createdAt`, `updatedAt` (los dos últimos con `serverTimestamp()`).
+
+## Diseño
+
+La dirección visual está en [docs/DESIGN_DIRECTION.md](docs/DESIGN_DIRECTION.md): un mapa de montaña en el que cada misión es un tramo de la ruta y la dificultad es el terreno.
+
+- **Tokens:** `paper`, `ink`, `contour`, `marker`, `trail`, `slope`, `summit`, `surface`, `ink-soft`, `line`, `danger` y `on-marker`, con valores para claro y oscuro. Los componentes solo usan utilidades de token (`bg-paper`, `text-ink-soft`, `border-line`...), sin colores por defecto de Tailwind, sin hex en los `.tsx`, sin sombras ni gradientes. El CSS minificado escribe los hex en minúscula.
+- **Escala tipográfica:** 14, 16, 20, 28 y 44 px (`text-small`, `text-body`, `text-title`, `text-heading`, `text-display`). Radios: 20 px contenedores, 14 px tarjetas, 10 px controles y chips redondos.
+- **Perfil de ruta:** SVG en la cabecera del dashboard, con un hito por misión ordenado por `createdAt`, el tramo recorrido hasta la última completada y la XP ganada a la derecha. Lleva `role="img"` y `aria-label` "N de M misiones completadas, X XP". Bajo la cresta hay un relieve decorativo muy tenue.
+- **Hitos distinguibles sin color (AC-70):** los activos son anillos huecos. Los completados son discos de `marker` que llevan el check si cabe (radio ≥ 4 px). Con muchas misiones y radios menores llevan un núcleo relleno, `on-marker` en claro; en oscuro basta el propio `marker`. Lo decide `milestoneShape` en `src/lib/routeProfile.ts`, y cada hito lo expone en `data-shape` (`ring`, `check` o `dot`).
+- **Curvas de nivel y contraste:** el mapa del acceso usa `contour` al 20 % en claro y al 15 % en oscuro. Desde 1024 px el texto va encima del mapa y conserva 4.73:1 y 6.11:1 sobre una curva (QA-014). En el perfil, las curvas del relieve se cortan a `r + 4,5 px` del centro de cada hito, como hacen los mapas alrededor de sus símbolos (`levelSegments` en `src/lib/routeProfile.ts`). Así el contorno del hito solo linda con el relieve o con `surface`, como mínimo a 3.81:1 (Sendero en claro), y nunca con una curva (QA-015).
+- **Una sola animación:** al completar una misión, el tramo avanza y el hito se rellena (menos de 1 s). Con `prefers-reduced-motion: reduce` no se mueve nada.
+- **Disposición:** desde 1024 px, dos columnas con "Nueva misión" fija (`sticky`) a la izquierda. En móvil, perfil → estadísticas → "Nueva misión" plegable → filtros → lista.
+
+## Misiones de ejemplo y tutorial
+
+**Misiones de ejemplo.** Cuando Firebase confirma una cuenta nueva (`getAdditionalUserInfo(cred)?.isNewUser === true`), se escriben 4 misiones en `users/{uid}/quests`. Vale para el registro con email y para el primer acceso con Google, tanto por popup como por redirect (en este caso, con el resultado de `getRedirectResult`). Se escriben con el mismo `createQuest` que el formulario, así que pasan las reglas actuales sin campos nuevos:
+
+1. Sendero: "Marca esta misión como completada"
+2. Sendero: "Edita esta misión y hazla tuya"
+3. Ladera: "Planifica tres objetivos para esta semana"
+4. Cumbre: "Termina ese proyecto que llevas tiempo aplazando"
+
+- **Orden determinista:** se escriben una tras otra en ese orden, y cada una espera a que el servidor confirme la anterior. Así los `createdAt` son distintos y crecientes en todas las cuentas. El perfil de ruta las dibuja de izquierda a derecha (Sendero, Sendero, Ladera, Cumbre). La lista muestra primero las más recientes, así que empieza por la Cumbre.
+- **Una sola vez:** no se crean al iniciar sesión, al recargar ni en accesos posteriores con Google. Si se borran, no vuelven. Con StrictMode tampoco se duplican.
+- **Mientras se escriben** aparece "Preparando tus misiones de ejemplo…" en lugar del estado vacío. Si fallan (por ejemplo, porque las reglas las rechazan), el dashboard se carga igualmente con un único aviso y no hay reintentos automáticos.
+- **Cuentas antiguas:** el estado vacío de "Todas" ofrece el botón "Añadir misiones de ejemplo", que crea las mismas 4.
+
+**Tutorial.** Es un recorrido de 5 pasos sobre la interfaz real: perfil de ruta, "Nueva misión", terreno, filtros y una tarjeta. Cada destino lleva `data-tour`. Se abre solo la primera vez por UID y navegador, con la lista ya cargada, y se repite con "Ver tutorial" en la cabecera. Es un `<dialog>` modal nativo con foco atrapado, Esc, "Saltar", "Anterior", "Siguiente"/"Terminar" y "Paso N de 5". Al cerrarse, el foco vuelve a "Ver tutorial". Si un destino no existe o está oculto (formulario plegado en móvil, sin misiones), el paso se centra y muestra un texto alternativo. La única marca que guarda es `questflow:tutorial:<uid>` = `done` en `localStorage`. Si el navegador bloquea el almacenamiento, la marca se guarda en memoria para esa sesión de la página.
 
 ## Equipo de agentes
 
@@ -93,7 +125,7 @@ Variables de `.env.local`. Salen de Firebase Console > Configuración del proyec
 | `npm run dev` | Servidor de desarrollo |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run test` | Tests unitarios con Vitest (XP, validación, filtros, estadísticas, niveles, auth, escrituras) |
+| `npm run test` | Tests unitarios con Vitest (XP, validación, filtros, estadísticas, niveles, auth, escrituras, geometría del perfil de ruta, curvas de nivel, misiones de ejemplo, siembra, tutorial y almacenamiento local) |
 | `npm run test:rules` | Tests de `firestore.rules` en el emulador de Firestore (`demo-questflow`) |
 | `npm run test:e2e` | E2E con Playwright contra los emuladores de Auth y Firestore |
 | `npm run build` / `npm start` | Build de producción y servidor |
@@ -109,6 +141,12 @@ Cubre lo siguiente:
 - Validaciones de login: campos vacíos, email mal formado, contraseña corta, credenciales incorrectas y email duplicado.
 - Validación del formulario de misiones.
 - `late-rejection.spec.ts`: escrituras hechas sin conexión que el servidor rechaza al reconectar (aviso por cambio perdido, retirada del aviso de éxito, "Restaurar en el formulario" con confirmación si hay un borrador) y texto escrito mientras "Creando…" que no se pierde al terminar.
+- `examples.spec.ts`: las 4 misiones de ejemplo, leídas por REST (literales, 6 campos, orden fijo en tres cuentas). Comprueba que no se repiten al recargar ni al cerrar e iniciar sesión, que no vuelven si se borran, el botón "Añadir misiones de ejemplo" con doble clic y una siembra rechazada por las reglas (un solo aviso, sin reintentos).
+- `tutorial.spec.ts`: apertura automática una vez por UID, foco atrapado, Esc, "Saltar", "Terminar", los 5 pasos, foco devuelto, marca por UID con dos cuentas, almacenamiento que lanza y pasos sin destino a 360 px.
+- `route-profile.spec.ts`: `aria-label` del perfil al completar, reabrir, crear, cambiar terreno y borrar. También el extremo del tramo recorrido, la animación al completar (y ninguna con reduced motion) y títulos con HTML mostrados como texto.
+- `responsive.spec.ts`: a 360, 768 y 1280 px, sin scroll horizontal con las misiones de ejemplo y con el tutorial abierto. En cada paso, el diálogo cabe entero y no tapa del todo su destino.
+- `contrast.spec.ts`: en claro y oscuro, a 1024 y 1280 px, cada texto que queda encima del mapa del acceso conserva 4,5:1 frente a las curvas, y el trazo no pasa de 1,5:1 contra `paper`. Además, a 360, 768 y 1280 px, ningún tramo de curva de nivel del perfil queda a menos de 2 px del contorno de un hito, y ese contorno conserva 3:1 frente al relieve y a `surface`. Los colores los resuelve el navegador.
+- `milestones.spec.ts` (AC-70): rutas de 4, 17, 40 y 60 misiones, preparadas por REST, a 360 px, y de 60 a 768 y 1280 px, en claro y oscuro. Se mide por píxeles sobre una captura a 1x. Dentro del hueco central, cada completado tiene algo a 3:1 o más de `surface` (check o núcleo) y cada activo está hueco. También se completa y se reabre una misión desde su tarjeta con 40 en la ruta.
 
 Antes de la primera ejecución, instala el navegador con `npx playwright install chromium`. Si tu entorno ya trae un Chromium que no coincide con la versión de Playwright, indica su ruta:
 
@@ -128,8 +166,8 @@ PW_CHROMIUM_PATH=/ruta/a/chrome npm run test:e2e
 ## Prueba en producción (incógnito)
 
 1. Abre la URL de producción en una ventana de incógnito. Debe aparecer la pantalla de acceso de QuestFlow, no un login de Vercel.
-2. **Crear cuenta** con un email y una contraseña de 6 caracteres o más. Aparece el dashboard vacío con 0 misiones y 0 %.
-3. Crea una misión, complétala (sube la XP), edítala y comprueba los filtros Todas, Activas y Completadas.
+2. **Crear cuenta** con un email y una contraseña de 6 caracteres o más. Se abre el tutorial ("Paso 1 de 5") y el dashboard muestra las 4 misiones de ejemplo, con 0 de 4 completadas y 0 %.
+3. Crea una misión, complétala (sube la XP y avanza el perfil de ruta), edítala y comprueba los filtros Todas, Activas y Hechas.
 4. Recarga la página: la misión sigue ahí.
 5. **Cerrar sesión** y vuelve a iniciar sesión con la misma cuenta: la misión sigue ahí.
 6. Prueba **Continuar con Google**. Si falla con "dominio no autorizado", revisa el paso 3 de la configuración de Firebase.
