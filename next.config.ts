@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Los E2E compilan en un directorio aparte (ver playwright.config.ts) para no
+  // pisar el build normal ni mezclar la configuración ficticia del emulador.
+  distDir: process.env.QUESTFLOW_DIST_DIR || ".next",
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

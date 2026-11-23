@@ -9,10 +9,18 @@ import { Dashboard } from "./Dashboard";
 import { ErrorBox, mutedText, secondaryButton, Spinner } from "./ui";
 
 function UserBar() {
-  const { status, user, signOut } = useAuth();
+  const { status, user } = useAuth();
+  if (status !== "signed-in" || !user) return null;
+  // key por UID: cada sesión monta una barra nueva, así el estado "Cerrando…" de
+  // la sesión anterior no se arrastra al volver a iniciar sesión sin recargar.
+  return <SignedInBar key={user.uid} />;
+}
+
+function SignedInBar() {
+  const { user, signOut } = useAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (status !== "signed-in" || !user) return null;
+  if (!user) return null;
   const name = user.displayName || user.email || "Usuario";
 
   return (
