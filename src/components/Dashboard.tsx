@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EMPTY_DRAFT, restoreNeedsConfirmation, type FormDraft } from "@/lib/formDraft";
 import { focusTargetAfterRemoval } from "@/lib/listFocus";
 import {
   computeStats,
@@ -92,6 +93,19 @@ export function Dashboard({ uid }: { uid: string }) {
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const createTitleRef = useRef<HTMLInputElement>(null);
+  // Borrador actual del formulario de creación (QA-010) y aviso a restaurar pendiente de confirmar.
+  const createDraftRef = useRef<FormDraft>(EMPTY_DRAFT);
+  const handleCreateDraftChange = useCallback((draft: FormDraft) => {
+    createDraftRef.current = draft;
+  }, []);
+  const [toRestore, setToRestore] = useState<SyncNotice | null>(null);
+  const [restoreFocusTick, setRestoreFocusTick] = useState(0);
+
+  // Tras confirmar la restauración, el foco va al título. Corre después del efecto de
+  // ConfirmDialog (hijo), que al cerrar el <dialog> intentaría devolverlo al botón ya retirado.
+  useEffect(() => {
+    if (restoreFocusTick > 0) createTitleRef.current?.focus();
+  }, [restoreFocusTick]);
 
   useEffect(() => {
     const unsubscribe = subscribeToQuests(
@@ -138,10 +152,28 @@ export function Dashboard({ uid }: { uid: string }) {
     [],
   );
 
-  function restoreCreation(notice: SyncNotice) {
+  function applyRestore(notice: SyncNotice) {
     if (!notice.restore) return;
     setCreateForm((current) => ({ key: current.key + 1, initial: notice.restore }));
     setSyncNotices((list) => removeNotice(list, notice.id));
+  }
+
+  /** QA-010: si el formulario tiene texto, pide confirmación antes de sustituirlo. */
+  function restoreCreation(notice: SyncNotice) {
+    if (!notice.restore) return;
+    if (restoreNeedsConfirmation(createDraftRef.current, notice.restore)) {
+      setToRestore(notice);
+      return;
+    }
+    applyRestore(notice);
+  }
+
+  function confirmRestore() {
+    const notice = toRestore;
+    setToRestore(null);
+    if (!notice) return;
+    applyRestore(notice);
+    setRestoreFocusTick((n) => n + 1);
   }
 
   function retry() {
@@ -259,6 +291,7 @@ export function Dashboard({ uid }: { uid: string }) {
           resetOnSuccess
           successMessage="Misión creada."
           titleRef={createTitleRef}
+          onDraftChange={handleCreateDraftChange}
           errorMessage={translateFirestoreError}
           onSubmit={(value, { retract }) =>
             runWrite(createQuest(value), lateErrorHandler({ kind: "create", value }, retract))
@@ -426,6 +459,19 @@ export function Dashboard({ uid }: { uid: string }) {
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={toRestore !== null}
+        title="¿Sustituir el borrador?"
+        message={
+          toRestore?.restore
+            ? `El formulario de nueva misión tiene texto sin guardar. Si restauras «${toRestore.restore.title}», ese texto se perderá.`
+            : ""
+        }
+        confirmLabel="Sustituir borrador"
+        onConfirm={confirmRestore}
+        onCancel={() => setToRestore(null)}
       />
     </div>
   );

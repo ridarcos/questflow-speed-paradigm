@@ -108,6 +108,7 @@ Cubre lo siguiente:
 - Aislamiento entre dos usuarios, tanto en la UI como contra las reglas: con el token de B, la ruta de A devuelve 403.
 - Validaciones de login: campos vacíos, email mal formado, contraseña corta, credenciales incorrectas y email duplicado.
 - Validación del formulario de misiones.
+- `late-rejection.spec.ts`: escrituras hechas sin conexión que el servidor rechaza al reconectar (aviso por cambio perdido, retirada del aviso de éxito, "Restaurar en el formulario" con confirmación si hay un borrador) y texto escrito mientras "Creando…" que no se pierde al terminar.
 
 Antes de la primera ejecución, instala el navegador con `npx playwright install chromium`. Si tu entorno ya trae un Chromium que no coincide con la versión de Playwright, indica su ruta:
 

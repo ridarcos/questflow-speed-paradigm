@@ -9,7 +9,7 @@ import {
   type SyncNotice,
 } from "./syncNotices";
 
-const REASON = "Firestore ha denegado la operación (permisos).";
+const REASON = "Firestore ha denegado la operación: no tienes permiso o los datos no son válidos.";
 
 describe("describeLostWrite", () => {
   it("nombra la misión creada que se perdió", () => {

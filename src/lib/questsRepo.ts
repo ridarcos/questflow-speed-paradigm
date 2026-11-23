@@ -122,7 +122,7 @@ export function translateFirestoreError(error: unknown): string {
       : "";
   switch (code) {
     case "permission-denied":
-      return "Firestore ha denegado la operación (permisos). Vuelve a iniciar sesión.";
+      return "Firestore ha denegado la operación: no tienes permiso o los datos no son válidos.";
     case "unavailable":
       return "No se puede conectar con Firestore. Revisa tu conexión.";
     case "unauthenticated":

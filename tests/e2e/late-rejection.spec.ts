@@ -70,8 +70,21 @@ test("un rechazo tardío retira el aviso de éxito y nombra cada cambio perdido"
   await expect(questCard(page, "SinRed")).toBeVisible();
   await expect(questCard(page, "SinRed editada")).toHaveCount(0);
 
-  // El texto de la creación rechazada se puede recuperar.
-  await notices.filter({ hasText: "«Tardia»" }).getByRole("button", { name: "Restaurar en el formulario" }).click();
+  // QA-010: con un borrador en curso, restaurar pide confirmación; cancelar lo conserva.
+  await form.getByLabel(/Título/).fill("Borrador en curso");
+  const restoreButton = notices.filter({ hasText: "«Tardia»" }).getByRole("button", { name: "Restaurar en el formulario" });
+  await restoreButton.click();
+  const dialog = page.getByRole("dialog", { name: "¿Sustituir el borrador?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(form.getByLabel(/Título/)).toHaveValue("Borrador en curso");
+  await expect(notices).toHaveCount(2);
+
+  // El texto de la creación rechazada se puede recuperar confirmando la sustitución.
+  await restoreButton.click();
+  await dialog.getByRole("button", { name: "Sustituir borrador" }).click();
+  await expect(dialog).toBeHidden();
   await expect(form.getByLabel(/Título/)).toHaveValue("Tardia");
   await expect(form.getByLabel(/Título/)).toBeFocused();
   await expect(form.getByLabel(/Descripción/)).toHaveValue("Texto que no debe perderse");
@@ -81,4 +94,34 @@ test("un rechazo tardío retira el aviso de éxito y nombra cada cambio perdido"
   // Cerrar el aviso restante.
   await notices.getByRole("button", { name: "Cerrar aviso" }).click();
   await expect(notices).toHaveCount(0);
+});
+
+test("QA-009: lo escrito mientras \"Creando…\" no se borra al terminar el envío", async ({ page, context }) => {
+  await page.goto("/");
+  await signUp(page, uniqueEmail("creando"));
+  const form = newQuestForm(page);
+  const title = form.getByLabel(/Título/);
+  const description = form.getByLabel(/Descripción/);
+
+  // Sin conexión el envío espera hasta 1,5 s, tiempo de sobra para seguir escribiendo.
+  await context.setOffline(true);
+  await title.fill("Primera");
+  await form.getByRole("button", { name: "Crear misión" }).click();
+  await expect(form.getByRole("button", { name: "Creando…" })).toBeVisible();
+  await title.fill("Segunda escrita durante el envío");
+  await description.fill("Nota nueva");
+  await expect(form.getByText(/Misión creada\./)).toBeVisible();
+  await expect(title).toHaveValue("Segunda escrita durante el envío");
+  await expect(description).toHaveValue("Nota nueva");
+  await expect(questCard(page, "Primera")).toBeVisible();
+
+  // Sin cambios durante el envío, el formulario sí se vacía.
+  await form.getByRole("button", { name: "Crear misión" }).click();
+  await expect(form.getByText(/Misión creada\./)).toBeVisible();
+  await expect(title).toHaveValue("");
+  await expect(description).toHaveValue("");
+  await expect(questCard(page, "Segunda escrita durante el envío")).toBeVisible();
+
+  await context.setOffline(false);
+  await expect(questCard(page, "Primera").getByText("Pendiente de sincronizar")).toHaveCount(0, { timeout: 30_000 });
 });

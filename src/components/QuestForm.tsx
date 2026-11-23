@@ -14,6 +14,7 @@ import {
   type QuestInput,
   type QuestValidationErrors,
 } from "@/lib/quests";
+import { EMPTY_DRAFT, shouldResetAfterSubmit, type FormDraft } from "@/lib/formDraft";
 import { queuedSuccessMessage } from "@/lib/syncNotices";
 import type { WriteOutcome } from "@/lib/writes";
 import { DIFFICULTY_STYLES, ErrorBox, fieldClass, mutedText, primaryButton, secondaryButton, Spinner } from "./ui";
@@ -30,8 +31,13 @@ interface QuestFormProps {
    */
   onSubmit: (value: QuestInput, submission: { retract: () => void }) => Promise<WriteOutcome | void>;
   onCancel?: () => void;
-  /** Vacía los campos tras un envío correcto (modo creación). */
+  /**
+   * Vacía los campos tras un envío correcto (modo creación), salvo que el
+   * usuario los haya cambiado mientras se guardaba (QA-009).
+   */
   resetOnSuccess?: boolean;
+  /** Recibe los valores actuales cada vez que cambian (p. ej. para no pisar un borrador). */
+  onDraftChange?: (draft: FormDraft) => void;
   /** Mensajes anunciados tras guardar (modo creación). */
   successMessage?: string;
   errorMessage?: (error: unknown) => string;
@@ -66,6 +72,7 @@ export function QuestForm({
   errorMessage = () => "No se pudo guardar la misión.",
   focusOnMount = false,
   titleRef,
+  onDraftChange,
 }: QuestFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -79,10 +86,23 @@ export function QuestForm({
   const localTitleRef = useRef<HTMLInputElement>(null);
   const inputRef = titleRef ?? localTitleRef;
   const id = useId();
+  // Valores más recientes, legibles tras el await del envío (el cierre ve los antiguos).
+  const draftRef = useRef<FormDraft>({ title, description, difficulty });
 
   useEffect(() => {
     if (focusOnMount) inputRef.current?.focus();
   }, [focusOnMount, inputRef]);
+
+  useEffect(() => {
+    onDraftChange?.({ title, description, difficulty });
+  }, [onDraftChange, title, description, difficulty]);
+
+  function updateDraft(patch: Partial<FormDraft>) {
+    draftRef.current = { ...draftRef.current, ...patch };
+    if (patch.title !== undefined) setTitle(patch.title);
+    if (patch.description !== undefined) setDescription(patch.description);
+    if (patch.difficulty !== undefined) setDifficulty(patch.difficulty as Difficulty);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,6 +121,7 @@ export function QuestForm({
     setPending(true);
     submissionRef.current += 1;
     const submission = submissionRef.current;
+    const submitted: FormDraft = { title, description, difficulty };
     let retracted = false;
     const retract = () => {
       retracted = true;
@@ -108,10 +129,8 @@ export function QuestForm({
     };
     try {
       const outcome = await onSubmit(result.value, { retract });
-      if (resetOnSuccess) {
-        setTitle("");
-        setDescription("");
-        setDifficulty("easy");
+      if (resetOnSuccess && shouldResetAfterSubmit(submitted, draftRef.current)) {
+        updateDraft(EMPTY_DRAFT);
       }
       if (successMessage && !retracted) {
         const online = typeof navigator === "undefined" || navigator.onLine;
@@ -153,7 +172,7 @@ export function QuestForm({
           value={title}
           placeholder="Ej.: Salir a correr 5 km"
           onChange={(e) => {
-            setTitle(e.target.value);
+            updateDraft({ title: e.target.value });
             setInfo(null);
             if (errors.title) setErrors((prev) => ({ ...prev, title: undefined }));
           }}
@@ -180,7 +199,7 @@ export function QuestForm({
           rows={2}
           maxLength={DESCRIPTION_MAX_LENGTH}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => updateDraft({ description: e.target.value })}
           aria-invalid={errors.description ? true : undefined}
           aria-describedby={describedBy(descId, Boolean(errors.description))}
           className={`${fieldClass} resize-y`}
@@ -205,7 +224,7 @@ export function QuestForm({
                 name={`${id}-difficulty`}
                 value={value}
                 checked={difficulty === value}
-                onChange={() => setDifficulty(value)}
+                onChange={() => updateDraft({ difficulty: value })}
                 className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none rounded-lg opacity-0"
               />
               <span className="flex items-center gap-1.5 text-sm font-semibold">
