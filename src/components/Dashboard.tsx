@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { EMPTY_DRAFT, restoreNeedsConfirmation, type FormDraft } from "@/lib/formDraft";
 import { focusTargetAfterRemoval } from "@/lib/listFocus";
 import {
@@ -21,13 +21,16 @@ import {
   translateFirestoreError,
   updateQuest,
 } from "@/lib/questsRepo";
+import { isInitialSeedSettled, isSeedBusy } from "@/lib/seedCoordinator";
+import { seeding } from "@/lib/seeding";
 import { addNotice, lateErrorNotice, removeNotice, type LateWrite, type SyncNotice } from "@/lib/syncNotices";
 import { runWrite } from "@/lib/writes";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { QuestForm } from "./QuestForm";
 import { QuestItem } from "./QuestItem";
 import { RouteProfile } from "./RouteProfile";
-import { buttonClass, cardClass, containerClass, ErrorBox, mutedText } from "./ui";
+import { useTutorialAutoStart } from "./Tutorial";
+import { buttonClass, cardClass, containerClass, ErrorBox, mutedText, Spinner } from "./ui";
 
 type ListState =
   | { status: "loading" }
@@ -37,7 +40,7 @@ type ListState =
 const EMPTY_MESSAGES: Record<QuestFilter, { title: string; body: string }> = {
   all: {
     title: "Aún no tienes misiones",
-    body: "Crea la primera desde Nueva misión y empieza a trazar tu ruta.",
+    body: "Crea la primera desde Nueva misión o añade las de ejemplo para ver cómo avanza tu ruta.",
   },
   active: {
     title: "No tienes misiones activas",
@@ -72,6 +75,16 @@ function LoadingList() {
           <div className="mt-3 h-4 w-1/2 rounded-full bg-ink/10 motion-safe:animate-pulse" />
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Cuenta nueva: las misiones de ejemplo se están escribiendo (en lugar del estado vacío). */
+function PreparingExamples() {
+  return (
+    <div role="status" aria-live="polite" className={`${cardClass} flex items-center gap-3 p-5 text-body`}>
+      <Spinner className="size-5 text-contour" />
+      Preparando tus misiones de ejemplo…
     </div>
   );
 }
@@ -160,6 +173,14 @@ export function Dashboard({ uid }: { uid: string }) {
   }, []);
   const [toRestore, setToRestore] = useState<SyncNotice | null>(null);
   const [titleFocusTick, setTitleFocusTick] = useState(0);
+  // Misiones de ejemplo (AC-59 a AC-62): estado compartido con el acceso.
+  const seedSnapshot = useSyncExternalStore(seeding.subscribe, seeding.getSnapshot, seeding.getSnapshot);
+  const seedState = seedSnapshot.accounts.get(uid);
+  const seedBusy = isSeedBusy(seedState);
+  const seedPhase = seedState?.phase;
+  const seedError = seedState?.phase === "error" ? seedState.error : null;
+  const initialSeedSettled = isInitialSeedSettled(seedSnapshot, uid);
+  const sampleFocusPending = useRef(false);
 
   // Enfoca el título del formulario de creación cuando se pide (restaurar, "Crear una misión").
   // Corre después del efecto de ConfirmDialog (hijo), que al cerrar el <dialog>
@@ -176,6 +197,12 @@ export function Dashboard({ uid }: { uid: string }) {
     );
     return unsubscribe;
   }, [uid, attempt]);
+
+  // Cuenta nueva: la siembra arranca con este dashboard ya montado, es decir,
+  // con la sesión propagada a Firestore. El coordinador ignora repeticiones.
+  useEffect(() => {
+    if (seedPhase === "pending") seeding.startPendingSeed(uid);
+  }, [uid, seedPhase]);
 
   const quests = useMemo(() => (list.status === "ready" ? list.quests : []), [list]);
   const stats = useMemo(() => computeStats(quests), [quests]);
@@ -197,6 +224,18 @@ export function Dashboard({ uid }: { uid: string }) {
     (target ?? listHeadingRef.current)?.focus();
   }, [focusTick, visible]);
   const loading = list.status === "loading";
+
+  // "Añadir misiones de ejemplo": al aparecer la lista el botón desaparece; el
+  // foco pasa al encabezado de la lista en vez de quedarse en <body>.
+  useEffect(() => {
+    if (!sampleFocusPending.current) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) listHeadingRef.current?.focus();
+    if (!seedBusy) sampleFocusPending.current = false;
+  }, [visible, seedBusy]);
+
+  // Tutorial: solo con la lista cargada, sin siembra inicial pendiente y sin otro diálogo abierto.
+  useTutorialAutoStart(list.status === "ready" && initialSeedSettled && toDelete === null && toRestore === null);
 
   /**
    * Devuelve el manejador de un rechazo que llega después de liberar la UI:
@@ -243,6 +282,12 @@ export function Dashboard({ uid }: { uid: string }) {
     setTitleFocusTick((n) => n + 1);
   }
 
+  function addExamples() {
+    if (seedBusy) return;
+    sampleFocusPending.current = true;
+    seeding.seedOnDemand(uid);
+  }
+
   function retry() {
     setList({ status: "loading" });
     setAttempt((n) => n + 1);
@@ -281,7 +326,7 @@ export function Dashboard({ uid }: { uid: string }) {
 
       {/* Columna de herramientas: fija al desplazar desde 1024 px. En móvil las estadísticas van primero. */}
       <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto">
-        <section aria-labelledby="new-quest-heading" className={`${containerClass} p-4 sm:p-5`}>
+        <section aria-labelledby="new-quest-heading" data-tour="new-quest" className={`${containerClass} p-4 sm:p-5`}>
           <h2 id="new-quest-heading" className="font-display text-title font-bold tracking-tight">
             <button
               type="button"
@@ -308,6 +353,7 @@ export function Dashboard({ uid }: { uid: string }) {
               resetOnSuccess
               successMessage="Misión creada."
               titleRef={createTitleRef}
+              terrainTour
               onDraftChange={handleCreateDraftChange}
               errorMessage={translateFirestoreError}
               onSubmit={(value, { retract }) =>
@@ -330,7 +376,7 @@ export function Dashboard({ uid }: { uid: string }) {
           >
             Tus misiones
           </h2>
-          <div role="group" aria-label="Filtrar misiones" className="flex flex-wrap gap-2">
+          <div role="group" aria-label="Filtrar misiones" data-tour="filters" className="flex flex-wrap gap-2">
             {QUEST_FILTERS.map((value) => {
               const count = value === "all" ? stats.total : value === "active" ? stats.active : stats.completed;
               const selected = filter === value;
@@ -394,6 +440,18 @@ export function Dashboard({ uid }: { uid: string }) {
             {actionError}
           </ErrorBox>
         )}
+        {seedError && (
+          <ErrorBox
+            title="No se pudieron crear las misiones de ejemplo"
+            action={
+              <button type="button" onClick={() => seeding.dismissError(uid)} className={buttonClass("secondary", "sm")}>
+                Cerrar aviso
+              </button>
+            }
+          >
+            {seedError}
+          </ErrorBox>
+        )}
 
         {list.status === "loading" && <LoadingList />}
         {list.status === "error" && (
@@ -408,7 +466,8 @@ export function Dashboard({ uid }: { uid: string }) {
             {list.message}
           </ErrorBox>
         )}
-        {list.status === "ready" && visible.length === 0 && (
+        {list.status === "ready" && stats.total === 0 && !initialSeedSettled && <PreparingExamples />}
+        {list.status === "ready" && visible.length === 0 && (stats.total > 0 || initialSeedSettled) && (
           <div className={`${cardClass} flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:p-6`}>
             <EmptyGlyph />
             <div className="min-w-0 flex-1">
@@ -420,9 +479,23 @@ export function Dashboard({ uid }: { uid: string }) {
                 Ver todas las misiones
               </button>
             ) : (
-              <button type="button" onClick={openCreateForm} className={buttonClass("secondary", "sm")}>
-                Crear una misión
-              </button>
+              <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+                <button type="button" onClick={openCreateForm} className={buttonClass("secondary", "sm")}>
+                  Crear una misión
+                </button>
+                {filter === "all" && (
+                  <button
+                    type="button"
+                    onClick={addExamples}
+                    aria-disabled={seedBusy || undefined}
+                    aria-busy={seedBusy || undefined}
+                    className={buttonClass("secondary", "sm")}
+                  >
+                    {seedBusy && <Spinner className="size-3.5" />}
+                    {seedBusy ? "Añadiendo…" : "Añadir misiones de ejemplo"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

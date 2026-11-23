@@ -44,6 +44,8 @@ interface QuestFormProps {
   /** Enfoca el título al montar (modo edición). */
   focusOnMount?: boolean;
   titleRef?: RefObject<HTMLInputElement | null>;
+  /** Marca el fieldset "Terreno" como destino del tutorial (solo el formulario de creación). */
+  terrainTour?: boolean;
 }
 
 const toneClass: Record<CharCountTone, string> = {
@@ -73,6 +75,7 @@ export function QuestForm({
   focusOnMount = false,
   titleRef,
   onDraftChange,
+  terrainTour = false,
 }: QuestFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -211,7 +214,7 @@ export function QuestForm({
         )}
       </div>
 
-      <fieldset className="min-w-0">
+      <fieldset className="min-w-0" data-tour={terrainTour ? "terrain" : undefined}>
         <legend className={labelClass}>Terreno</legend>
         <div className="mt-2 grid gap-2 @xl:grid-cols-3">
           {DIFFICULTIES.map((value) => (

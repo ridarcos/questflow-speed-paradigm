@@ -6,6 +6,14 @@ export const AUTH_EMULATOR = "http://127.0.0.1:9099";
 export const FIRESTORE_EMULATOR = "http://127.0.0.1:8080";
 export const PASSWORD = "secreto-e2e-123";
 
+/** Las 4 misiones de ejemplo de toda cuenta nueva, en orden de creación (docs/DESIGN_DIRECTION.md). */
+export const EXAMPLE_TITLES = [
+  "Marca esta misión como completada",
+  "Edita esta misión y hazla tuya",
+  "Planifica tres objetivos para esta semana",
+  "Termina ese proyecto que llevas tiempo aplazando",
+] as const;
+
 let counter = 0;
 /** Email único por ejecución para no depender del estado del emulador. */
 export function uniqueEmail(prefix: string): string {
@@ -44,9 +52,23 @@ export async function submitCredentials(
   await form.getByRole("button", { name: mode }).click();
 }
 
+/**
+ * Registro desde la UI. Una cuenta nueva abre sola el tutorial (con la lista y
+ * las misiones de ejemplo ya cargadas): se comprueba y se cierra con "Saltar".
+ */
 export async function signUp(page: Page, email: string, password = PASSWORD): Promise<void> {
   await submitCredentials(page, "Crear cuenta", email, password);
+  await skipTutorial(page);
   await expectSignedIn(page);
+}
+
+/** El tutorial está abierto en el paso 1: se cierra con "Saltar". */
+export async function skipTutorial(page: Page): Promise<void> {
+  const tutorial = page.getByRole("dialog", { name: "Tu ruta" });
+  await expect(tutorial).toBeVisible();
+  await expect(tutorial).toContainText("Paso 1 de 5");
+  await tutorial.getByRole("button", { name: "Saltar" }).click();
+  await expect(tutorial).toBeHidden();
 }
 
 export async function signIn(page: Page, email: string, password = PASSWORD): Promise<void> {
@@ -85,6 +107,15 @@ export async function createQuest(
   }
   await form.getByRole("button", { name: "Crear misión" }).click();
   await expect(questCard(page, title)).toBeVisible();
+}
+
+/** Elimina una misión desde su tarjeta, confirmando en el diálogo. */
+export async function deleteQuestFromUI(page: Page, title: string): Promise<void> {
+  await questCard(page, title).getByRole("button", { name: `Eliminar misión: ${title}` }).click();
+  const dialog = page.getByRole("dialog", { name: "¿Eliminar misión?" });
+  await dialog.getByRole("button", { name: "Eliminar misión" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(questCard(page, title)).toHaveCount(0);
 }
 
 /** Tarjeta de una misión por su título exacto. */

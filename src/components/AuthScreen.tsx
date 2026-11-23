@@ -19,6 +19,7 @@ import {
 } from "@/lib/authErrors";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { DIFFICULTIES, DIFFICULTY_LABELS, xpFor, type Difficulty } from "@/lib/quests";
+import { noteSignInResult, seeding } from "@/lib/seeding";
 import { useAuth } from "./AuthProvider";
 import { ContourMap } from "./ContourMap";
 import { buttonClass, containerClass, ErrorBox, fieldClass, labelClass, mutedText, TerrainIcon } from "./ui";
@@ -35,6 +36,10 @@ const TERRAIN_HINTS: Readonly<Record<Difficulty, string>> = {
  * Pantalla de acceso. El error de signInWithRedirect vive en el contexto de
  * AuthProvider y se lee en cada render (QA-004): si llega después de montar
  * esta pantalla, también se muestra.
+ *
+ * Cada acceso se registra en `seeding` (beginSignIn) hasta conocer su
+ * resultado: si Firebase indica cuenta nueva, quedan pendientes las misiones
+ * de ejemplo y el dashboard no enseña entretanto el estado vacío.
  */
 export function AuthScreen() {
   const { error: providerError, clearError } = useAuth();
@@ -71,17 +76,20 @@ export function AuthScreen() {
       return;
     }
     setPending(true);
+    const endSignIn = seeding.beginSignIn();
     try {
       const auth = getFirebaseAuth();
-      if (mode === "signup") {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
-      } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-      }
+      const credential =
+        mode === "signup"
+          ? await createUserWithEmailAndPassword(auth, email.trim(), password)
+          : await signInWithEmailAndPassword(auth, email.trim(), password);
+      noteSignInResult(credential);
       // onAuthStateChanged se encarga de mostrar el dashboard.
     } catch (err) {
       setLocalError(translateAuthError(err));
       setPending(false);
+    } finally {
+      endSignIn();
     }
   }
 
@@ -89,22 +97,23 @@ export function AuthScreen() {
     resetErrors();
     setInfo(null);
     setPending(true);
-    const auth = getFirebaseAuth();
-    const provider = new GoogleAuthProvider();
+    const endSignIn = seeding.beginSignIn();
     try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      if (authErrorCode(err) === "auth/popup-blocked") {
-        try {
-          await signInWithRedirect(auth, provider);
-          return;
-        } catch (redirectErr) {
-          setLocalError(translateAuthError(redirectErr));
-        }
-      } else {
-        setLocalError(translateAuthError(err));
+      const auth = getFirebaseAuth();
+      const provider = new GoogleAuthProvider();
+      try {
+        noteSignInResult(await signInWithPopup(auth, provider));
+      } catch (err) {
+        if (authErrorCode(err) !== "auth/popup-blocked") throw err;
+        // Popup bloqueado: el resultado (y la siembra) llega con getRedirectResult en AuthProvider.
+        await signInWithRedirect(auth, provider);
+        return;
       }
+    } catch (err) {
+      setLocalError(translateAuthError(err));
       setPending(false);
+    } finally {
+      endSignIn();
     }
   }
 

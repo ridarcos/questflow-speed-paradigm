@@ -56,6 +56,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
   return (
     <li
       data-quest-id={quest.id}
+      data-tour={editing ? undefined : "quest-card"}
       tabIndex={-1}
       aria-labelledby={titleId}
       className={`min-w-0 scroll-mt-6 rounded-card border border-ink/10 p-4 sm:p-5 ${quest.completed ? "bg-paper" : "bg-surface"}`}
@@ -88,7 +89,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
             </span>
             {quest.completed ? (
               <span className="inline-flex items-center rounded-full bg-marker px-2.5 py-0.5 text-small font-semibold tabular-nums text-on-marker">
-                +{xp} XP ganados
+                +{xp} XP<span className="sr-only"> ganados</span>
               </span>
             ) : (
               <span className={`text-small tabular-nums ${mutedText}`}>{xp} XP</span>

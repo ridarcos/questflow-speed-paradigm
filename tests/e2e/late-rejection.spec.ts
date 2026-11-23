@@ -1,7 +1,16 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { createQuest, FIRESTORE_EMULATOR, newQuestForm, PROJECT_ID, questCard, signUp, uniqueEmail } from "./helpers";
+import {
+  createQuest,
+  EXAMPLE_TITLES,
+  FIRESTORE_EMULATOR,
+  newQuestForm,
+  PROJECT_ID,
+  questCard,
+  signUp,
+  uniqueEmail,
+} from "./helpers";
 
 /**
  * QA-008: escrituras hechas sin conexión que el servidor rechaza al reconectar.
@@ -36,6 +45,9 @@ test("un rechazo tardío retira el aviso de éxito y nombra cada cambio perdido"
   await signUp(page, uniqueEmail("rechazo"));
   await createQuest(page, "SinRed");
   await expect(questCard(page, "SinRed").getByText("Pendiente de sincronizar")).toHaveCount(0);
+  // Las 4 misiones de ejemplo ya están en el servidor antes de cambiar las reglas.
+  for (const title of EXAMPLE_TITLES) await expect(questCard(page, title)).toBeVisible();
+  await expect(page.locator("[data-quest-id]").getByText("Pendiente de sincronizar")).toHaveCount(0);
 
   await context.setOffline(true);
   const form = newQuestForm(page);

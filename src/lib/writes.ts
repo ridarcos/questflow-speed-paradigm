@@ -2,8 +2,8 @@
  * Escrituras en Firestore sin bloquear la interfaz (AC-26).
  *
  * Firestore aplica cada escritura en la caché local al instante (latency
- * compensation) y la promesa de addDoc/updateDoc/deleteDoc solo se resuelve
- * cuando el servidor la confirma. Sin conexión esa promesa puede quedar
+ * compensation) y la promesa de cada escritura (crear, editar o borrar) solo
+ * se resuelve cuando el servidor la confirma. Sin conexión esa promesa puede quedar
  * pendiente indefinidamente, así que la interfaz espera como máximo
  * `windowMs`:
  *
