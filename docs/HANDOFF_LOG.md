@@ -24,6 +24,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 16 | 2026-11-23 | 5 | develop | Implementar el rediseño v2 (AC-50 a AC-69, SEC-07 a SEC-10): sistema visual, perfil de ruta, acceso, terreno, misiones de ejemplo, tutorial y pruebas | Entregado en `bae5d8a`, `6998eb9` y `27f3bcc`. lint y typecheck OK, test 156/156, test:rules 34/34, test:e2e 21/21 (14 nuevos), build sin `.env.local` OK y `npm audit` sin altos nuevos. `firestore.rules` sin cambios. BLOCKED: Google por popup/redirect (el contenedor no alcanza `apis.google.com`). `unshare -n npm run build` literal falla porque el namespace arranca con `lo` apagado (Turbopack usa 127.0.0.1); con `lo` levantado y sin red exterior pasa. La variante sin conexión de AC-62 solo se probó con un script propio | Entrega Develop Fase 5 | #17 |
 | 17 | 2026-11-23 | 5 | testing | Revisión independiente de la Fase 5 en un clon limpio y retest de QA-011 a QA-013. Matriz propia de 160 estados (claro/oscuro, 360/768/1280, E1–E9) con contraste medido por píxeles, foco por teclado, axe-core, recuentos REST en `next start` y `next dev`, y 4 pruebas de mutación | **FAIL** solo por AC-53: QA-014 y QA-015. El resto de AC-50 a AC-69 y SEC-07 a SEC-10 PASS; QA-011, QA-012 y QA-013 PASS. Reprodujo las cifras de Develop: test 156/156, test:rules 34/34, test:e2e 21/21, build OK, 0 violaciones axe. Las 4 mutaciones mueren. BLOCKED: Google (el proxy deniega `apis.google.com` con 403) | Informe Testing #17 | #19 |
 | 18 | 2026-11-23 | 5 | develop | Corregir QA-014 y QA-015 (AC-53) sin ampliar el alcance | Entregado en `9b89aa9`, `911e81d` y `5ae739e`. QA-014: curvas del acceso al 20 % en claro, 4.73:1 medido por píxeles (antes 4.43:1). QA-015: las curvas del perfil se cortan alrededor de cada hito (`levelSegments()`), mínimo 3.81:1 en claro (antes 2.90:1). Nuevo `contrast.spec.ts` y 6 unitarios; la mutación inversa los hace fallar. lint, typecheck, test 162/162, test:rules 34/34, test:e2e 23/23 y build OK | Entrega Develop QA-014/015 | #19 |
+| 19 | 2026-11-23 | 5 | testing | Retest de QA-014 y QA-015 y regresión completa en un clon limpio nuevo; matriz E1/E2 de 68 estados, medición geométrica y por píxeles, 8 mutaciones | **BLOCKED, sin FAIL**. QA-014 PASS (4.73:1 en claro, 6.19:1 en oscuro, barrido de 19 anchos) y QA-015 PASS (mínimo 3.81:1 en claro, 6.33:1 en oscuro, 4/16/40 misiones). AC-52, AC-53, AC-67, AC-68, AC-69 y SEC-01/05/09 PASS; 0 violaciones axe serias. test 162/162, test:rules 34/34, test:e2e 23/23, build OK. Las 8 mutaciones mueren. Confirmó que su medidor de #17 daba un falso 2.93:1 con las curvas partidas. Propone AC-NEW-07: el check de los hitos completados desaparece con muchas misiones (r < 5) y en claro solo queda el color. BLOCKED: Google (proxy, 403) | Informe Testing #19 | #21 |
 
 ## Resultado final de la v1 (PR #1)
 
@@ -50,8 +51,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-011 | media | AC-53, AC-25 | La dirección de diseño pone texto `ink` sobre `marker`; en oscuro da 1.56:1 | #15 | Token `on-marker` #1B2A26 en ambos temas (`6ea9878`) | PASS (#17) |
 | QA-012 | media | AC-53 | `trail` (3.93:1) y `slope` (4.12:1) no sirven como texto sobre `paper` claro | #15 | Texto de terreno en `ink`; los colores de terreno solo en iconos y bordes (`6ea9878`) | PASS (#17) |
 | QA-013 | media | AC-53, AC-25 | Foco e hitos completados en `marker` sobre `paper` claro dan 1.67:1 (< 3:1) | #15 | Foco con contorno `contour` de 2 px; hitos con contorno `contour` y check (`6ea9878`) | PASS (#17) |
-| QA-014 | media | AC-53 | En tema claro, desde 1024 px, el texto secundario del acceso queda sobre las curvas del mapa a 4.39–4.48:1 (`ContourMap.tsx:28`, trazo `contour/25`) | #17 | `9b89aa9` (trazo `contour/20` en claro) | Pendiente (#19) |
-| QA-015 | baja | AC-53 | El contorno del hito Sendero queda a 2.93:1 donde lo cruza una curva de nivel del perfil de ruta (`RouteProfile.tsx:177-184`, `stroke-contour/20`) | #17 | `911e81d` (curvas cortadas alrededor de los hitos) | Pendiente (#19) |
+| QA-014 | media | AC-53 | En tema claro, desde 1024 px, el texto secundario del acceso queda sobre las curvas del mapa a 4.39–4.48:1 (`ContourMap.tsx:28`, trazo `contour/25`) | #17 | `9b89aa9` (trazo `contour/20` en claro) | PASS (#19) |
+| QA-015 | baja | AC-53 | El contorno del hito Sendero queda a 2.93:1 donde lo cruza una curva de nivel del perfil de ruta (`RouteProfile.tsx:177-184`, `stroke-contour/20`) | #17 | `911e81d` (curvas cortadas alrededor de los hitos) | PASS (#19) |
 
 ## Avisos y notas
 
@@ -62,6 +63,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 - Numeración: Testing propuso QA-006 y QA-007 en #7, pero el Orquestador ya había asignado QA-006 al defecto que encontró Develop en #8. Los dos de Testing quedan registrados como QA-007 y QA-008.
 
 ## Cambios en los criterios
+
+- Tras el informe #19 el Orquestador incorpora AC-70 (antes AC-NEW-07): los hitos completados conservan una señal que no es solo color con cualquier número de misiones.
 
 - Tras el informe #17, a propuesta de Testing: la verificación de AC-51 sin red pasa a ser `unshare -n` con solo la interfaz `lo` levantada (Turbopack usa 127.0.0.1); AC-52 aclara que las curvas de nivel dentro del perfil de ruta son decoración permitida y que el tope de 1,5:1 aplica solo al patrón del acceso; SEC-07 anota como excepción del SDK la petición a `www.google.com/images/cleardot.gif` sin conexión.
 
