@@ -12,6 +12,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 4 | 2026-11-23 | 2 | develop | Login con Email/Contraseña y Google, CRUD en `users/{uid}/quests`, estadísticas, filtros, emuladores y tests de reglas | Entregado en el commit `292512a`. lint, typecheck, test 39/39, test:rules 34/34 y build OK. La prueba de mutación de las reglas hizo fallar 2 tests, como se esperaba. El smoke con Playwright y emuladores pasó. Google no se probó de verdad | Entrega Develop Fase 2 | #5 |
 | 5 | 2026-11-23 | 2 | testing | Revisión independiente de la Fase 2 en un clon limpio, con E2E propio (Playwright + emuladores de Auth y Firestore) y dos usuarios | **BLOCKED, sin FAIL**. Todos los criterios comprobables pasan: E2E 54 de 55 (el restante eran 400 esperados de las pruebas negativas), test:rules 34/34 y aislamiento A/B por REST (403 en la ruta ajena, 200 en la propia). Quedan BLOCKED hasta producción Google real (AC-10), producción (AC-16) y Node 24 en Vercel (AC-36). Defectos nuevos QA-004 y QA-005 | Informe Testing #5 | #7 |
 | 6 | 2026-11-23 | 3 | develop | Corregir QA-004 y QA-005; AC-22 a AC-26 (estados, validación, responsive, accesibilidad, escrituras sin conexión) | Entregado en el commit `70af2de`. lint, typecheck, test 56/56, test:rules 34/34 y build OK. Smoke con Playwright y emuladores 39/39, incluidos modo sin conexión, reglas que rechazan escrituras y foco tras borrar | Entrega Develop Fase 3 | Pendiente: #7 |
+| 8 | 2026-11-23 | 4 | develop | E2E versionado con Playwright (AC-31), README (AC-32), auditoría de dependencias (SEC-05 en `docs/SECURITY.md`) y SEC-04 | Entregado en el commit `1c1f831`. lint, typecheck, test 56/56, test:rules 34/34, test:e2e 5/5 y build OK. El E2E destapó QA-006 y quedó corregido en el mismo commit. npm audit sigue con 4 altos, justificados (grpc-js, sin versión que lo corrija) | Entrega Develop Fase 4 | Pendiente: #9 |
 
 ## Hallazgos y correcciones
 
@@ -22,6 +23,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-003 | baja | AC-22, SEC-02 | Un título formado solo por espacios pasa las reglas (L11) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | `70af2de` | Pendiente: #7 |
 | QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | `70af2de` | Pendiente: #7 |
+| QA-006 | media | AC-10b | Al cerrar sesión y volver a entrar sin recargar, el botón "Cerrando…" se quedaba deshabilitado. Lo detectó el E2E de Develop en la Fase 4 | #8 | `1c1f831` (`SignedInBar` con `key=uid`) | Pendiente: #9 |
 
 ## Avisos abiertos
 
