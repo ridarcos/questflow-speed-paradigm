@@ -21,6 +21,20 @@ export interface ProfileQuest {
   createdAt: { toMillis(): number } | null;
 }
 
+/**
+ * Cómo se dibuja un hito (AC-70). Un completado nunca se distingue de un
+ * activo solo por el color, tenga el radio que tenga:
+ * - `ring`: activo. Anillo hueco: surface dentro y borde del color de su terreno.
+ * - `check`: completado con sitio para el check. Disco de marker, borde contour
+ *   y check on-marker (7.91:1 sobre marker).
+ * - `dot`: completado donde el check ya no cabe. Disco de marker, borde contour
+ *   y un núcleo relleno on-marker, como el check (14.11:1 frente a surface y
+ *   7.91:1 sobre marker), porque en claro marker solo da 1.78:1 y el hito
+ *   parecería hueco. En oscuro el núcleo se oculta: on-marker apenas da 1.08:1
+ *   frente a surface y marker ya da 8.52:1, así que el disco entero se lee relleno.
+ */
+export type MilestoneShape = "ring" | "check" | "dot";
+
 export interface Milestone {
   id: string;
   x: number;
@@ -28,6 +42,7 @@ export interface Milestone {
   r: number;
   completed: boolean;
   difficulty: Difficulty;
+  shape: MilestoneShape;
 }
 
 export interface RouteProfileGeometry {
@@ -70,6 +85,49 @@ const TERRAIN_HEIGHT: Readonly<Record<Difficulty, number>> = Object.freeze({
 
 const MIN_RADIUS = 2.5;
 const MAX_RADIUS = 7;
+
+/** Grosor del borde de un hito activo (anillo de terreno), en px. */
+export const RING_STROKE = 1.75;
+/** Grosor del borde contour de un hito completado, en px. */
+export const DONE_STROKE = 2;
+/** Grosor del trazo del check, en px. */
+export const CHECK_STROKE = 1.6;
+
+/** Vértices del check en unidades de radio, respecto al centro del hito. */
+const CHECK_POINTS: readonly (readonly [number, number])[] = [
+  [-0.42, 0.02],
+  [-0.1, 0.34],
+  [0.44, -0.3],
+];
+
+/**
+ * Radio desde el que se dibuja el check (AC-70). Con su trazo, el check llega a
+ * 0.5325·r + CHECK_STROKE / 2 del centro y tiene que quedar dentro del disco de
+ * marker que deja libre el borde (r − DONE_STROKE / 2): eso pide r ≥ 3.85. Por
+ * debajo, el completado lleva un núcleo relleno en lugar del check.
+ */
+export const CHECK_MIN_RADIUS = 4;
+
+export function milestoneShape(completed: boolean, r: number): MilestoneShape {
+  if (!completed) return "ring";
+  return r >= CHECK_MIN_RADIUS ? "check" : "dot";
+}
+
+/** Trazo del check centrado en el hito (atributo `d`). */
+export function checkPath({ x, y, r }: Pick<Milestone, "x" | "y" | "r">): string {
+  return CHECK_POINTS.map(([dx, dy], i) => `${i === 0 ? "M" : "L"}${round(x + dx * r)} ${round(y + dy * r)}`).join(" ");
+}
+
+/**
+ * Radio del núcleo de un completado sin check: la mitad del disco de marker que
+ * deja libre el borde, y nunca menos de 0,75 px. Así queda un anillo de marker
+ * tan ancho como el radio del núcleo (0,75 px con el radio mínimo, 1,5 px justo
+ * antes de que quepa el check) y, a 1x, el píxel central sigue por encima de
+ * 4:1 frente a surface aunque el núcleo solo lo cubra en parte (4.17:1 medido).
+ */
+export function dotRadius(r: number): number {
+  return round(Math.max(0.75, (r - DONE_STROKE / 2) / 2));
+}
 
 /**
  * Holgura de las curvas de nivel alrededor de cada hito, sumada a su radio
@@ -234,6 +292,7 @@ export function computeRouteProfile(
     r,
     completed: quest.completed,
     difficulty: quest.difficulty,
+    shape: milestoneShape(quest.completed, r),
   }));
 
   // Puntos de la cresta: inicio, (hito, collado)*, final.

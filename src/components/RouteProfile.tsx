@@ -2,7 +2,15 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Difficulty, Quest, QuestStats } from "@/lib/quests";
-import { computeRouteProfile, routeProfileLabel, type Milestone } from "@/lib/routeProfile";
+import {
+  CHECK_STROKE,
+  checkPath,
+  computeRouteProfile,
+  DONE_STROKE,
+  dotRadius,
+  RING_STROKE,
+  routeProfileLabel,
+} from "@/lib/routeProfile";
 import { containerClass, mutedText } from "./ui";
 
 interface RouteProfileProps {
@@ -32,11 +40,6 @@ interface Snapshot {
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function checkPath({ x, y, r }: Milestone): string {
-  const p = (dx: number, dy: number) => `${Math.round((x + dx * r) * 100) / 100} ${Math.round((y + dy * r) * 100) / 100}`;
-  return `M${p(-0.42, 0.02)} L${p(-0.1, 0.34)} L${p(0.44, -0.3)}`;
 }
 
 function animateCompletion(
@@ -71,10 +74,11 @@ function animateCompletion(
 
 /**
  * Perfil de ruta (AC-55): un hito por misión, de la más antigua a la más
- * reciente, sobre una línea de cresta. Los completados se rellenan de marker
- * con contorno contour y check; el tramo recorrido llega hasta el completado
- * más reciente por fecha de creación. Nada del SVG recibe foco ni lleva texto
- * del usuario (solo IDs en data-milestone).
+ * reciente, sobre una línea de cresta. Los activos son anillos huecos; los
+ * completados, discos de marker con contorno contour y, dentro, el check si
+ * cabe o un núcleo relleno si no (AC-70, `milestoneShape`). El tramo recorrido
+ * llega hasta el completado más reciente por fecha de creación. Nada del SVG
+ * recibe foco ni lleva texto del usuario (solo IDs en data-milestone).
  */
 export function RouteProfile({ quests, stats, loading }: RouteProfileProps) {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -207,18 +211,34 @@ export function RouteProfile({ quests, stats, loading }: RouteProfileProps) {
               )}
               {!loading &&
                 geometry.milestones.map((m) => (
-                  <g key={m.id} data-milestone={m.id} data-completed={m.completed ? "true" : "false"} data-terrain={m.difficulty}>
+                  <g
+                    key={m.id}
+                    data-milestone={m.id}
+                    data-completed={m.completed ? "true" : "false"}
+                    data-terrain={m.difficulty}
+                    data-shape={m.shape}
+                  >
                     <circle cx={m.x} cy={m.y} r={m.r} className="fill-surface" />
                     {m.completed && (
                       <g data-milestone-fill="" style={{ transformBox: "fill-box", transformOrigin: "center" }}>
                         <circle cx={m.x} cy={m.y} r={m.r} className="fill-marker" />
-                        {m.r >= 5 && (
+                        {m.shape === "check" ? (
                           <path
+                            data-milestone-mark="check"
                             d={checkPath(m)}
                             className="stroke-on-marker"
-                            strokeWidth={1.6}
+                            strokeWidth={CHECK_STROKE}
                             strokeLinecap="round"
                             strokeLinejoin="round"
+                          />
+                        ) : (
+                          // Núcleo: en claro hace que el disco se lea relleno; en oscuro ya lo hace marker.
+                          <circle
+                            data-milestone-mark="dot"
+                            cx={m.x}
+                            cy={m.y}
+                            r={dotRadius(m.r)}
+                            className="fill-on-marker dark:hidden"
                           />
                         )}
                       </g>
@@ -228,7 +248,7 @@ export function RouteProfile({ quests, stats, loading }: RouteProfileProps) {
                       cy={m.y}
                       r={m.r}
                       className={m.completed ? "stroke-contour" : TERRAIN_STROKE[m.difficulty]}
-                      strokeWidth={m.completed ? 2 : 1.75}
+                      strokeWidth={m.completed ? DONE_STROKE : RING_STROKE}
                     />
                   </g>
                 ))}
