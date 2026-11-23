@@ -81,7 +81,7 @@ export function validateQuestInput(draft: QuestDraft): QuestValidationResult {
     errors.description = `La descripción no puede superar ${DESCRIPTION_MAX_LENGTH} caracteres.`;
   }
   if (!isDifficulty(draft.difficulty)) {
-    errors.difficulty = "Elige una dificultad válida.";
+    errors.difficulty = "Elige un terreno: Sendero, Ladera o Cumbre.";
   }
 
   if (Object.keys(errors).length > 0 || !isDifficulty(draft.difficulty)) {
@@ -174,16 +174,20 @@ export function toQuest(id: string, data: Record<string, unknown> | undefined): 
   };
 }
 
+/**
+ * Nombre visible de cada dificultad: el terreno de la ruta. En Firestore se
+ * sigue guardando easy | medium | hard.
+ */
 export const DIFFICULTY_LABELS: Readonly<Record<Difficulty, string>> = Object.freeze({
-  easy: "Fácil",
-  medium: "Media",
-  hard: "Difícil",
+  easy: "Sendero",
+  medium: "Ladera",
+  hard: "Cumbre",
 });
 
 export const FILTER_LABELS: Readonly<Record<QuestFilter, string>> = Object.freeze({
   all: "Todas",
   active: "Activas",
-  completed: "Completadas",
+  completed: "Hechas",
 });
 
 /* ------------------------------------------------------------------ */

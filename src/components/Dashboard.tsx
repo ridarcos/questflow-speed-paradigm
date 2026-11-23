@@ -7,11 +7,11 @@ import {
   computeStats,
   filterQuests,
   FILTER_LABELS,
-  levelFromXp,
   QUEST_FILTERS,
   type Quest,
   type QuestFilter,
   type QuestInput,
+  type QuestStats,
 } from "@/lib/quests";
 import {
   createQuest,
@@ -26,7 +26,8 @@ import { runWrite } from "@/lib/writes";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { QuestForm } from "./QuestForm";
 import { QuestItem } from "./QuestItem";
-import { cardClass, ErrorBox, focusRing, mutedText, secondaryButton } from "./ui";
+import { RouteProfile } from "./RouteProfile";
+import { buttonClass, cardClass, containerClass, ErrorBox, mutedText } from "./ui";
 
 type ListState =
   | { status: "loading" }
@@ -36,15 +37,15 @@ type ListState =
 const EMPTY_MESSAGES: Record<QuestFilter, { title: string; body: string }> = {
   all: {
     title: "Aún no tienes misiones",
-    body: "Crea la primera con el formulario y empieza a ganar XP.",
+    body: "Crea la primera desde Nueva misión y empieza a trazar tu ruta.",
   },
   active: {
-    title: "No hay misiones activas",
-    body: "¡Todo completado! Crea una nueva misión para seguir subiendo de nivel.",
+    title: "No tienes misiones activas",
+    body: "Todo hecho. Crea otra misión para seguir ganando altura.",
   },
   completed: {
     title: "Todavía no has completado ninguna misión",
-    body: "Completa una misión activa para ganar su XP.",
+    body: "Completa una misión activa para sumar su XP a tu ruta.",
   },
 };
 
@@ -55,21 +56,78 @@ const EMPTY_MESSAGES: Record<QuestFilter, { title: string; body: string }> = {
  */
 type FocusRequest = { questId: string | null; waitUpdates: number } | null;
 
+const NEW_QUEST_REGION_ID = "new-quest-region";
+
 function LoadingList() {
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-3">
       <span className="sr-only">Cargando misiones…</span>
       {[0, 1, 2].map((i) => (
-        <div key={i} aria-hidden="true" className={`${cardClass} p-4`}>
+        <div key={i} aria-hidden="true" className={`${cardClass} p-5`}>
           <div className="flex gap-2">
-            <div className="h-5 w-16 rounded-full bg-slate-200 motion-safe:animate-pulse dark:bg-slate-700" />
-            <div className="h-5 w-12 rounded-full bg-slate-200 motion-safe:animate-pulse dark:bg-slate-700" />
+            <div className="h-4 w-20 rounded-full bg-ink/10 motion-safe:animate-pulse" />
+            <div className="h-4 w-12 rounded-full bg-ink/10 motion-safe:animate-pulse" />
           </div>
-          <div className="mt-3 h-5 w-3/4 rounded bg-slate-200 motion-safe:animate-pulse dark:bg-slate-700" />
-          <div className="mt-2 h-4 w-1/2 rounded bg-slate-100 motion-safe:animate-pulse dark:bg-slate-800" />
+          <div className="mt-4 h-5 w-3/4 rounded-full bg-ink/10 motion-safe:animate-pulse" />
+          <div className="mt-3 h-4 w-1/2 rounded-full bg-ink/10 motion-safe:animate-pulse" />
         </div>
       ))}
     </div>
+  );
+}
+
+function StatsPanel({ stats, loading, className = "" }: { stats: QuestStats; loading: boolean; className?: string }) {
+  const items = [
+    { label: "Misiones", value: String(stats.total) },
+    { label: "Completadas", value: String(stats.completed) },
+    { label: "XP ganada", value: String(stats.xpEarned) },
+    { label: "Progreso", value: `${stats.progressPercent} %` },
+  ];
+  return (
+    <section
+      aria-labelledby="stats-heading"
+      aria-busy={loading || undefined}
+      className={`${containerClass} px-5 py-4 ${className}`}
+    >
+      <h2 id="stats-heading" className="sr-only">
+        Estadísticas
+      </h2>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+        {items.map((item) => (
+          <div key={item.label} className="min-w-0">
+            <dt className={`text-small ${mutedText}`}>{item.label}</dt>
+            <dd className="font-display text-heading font-bold tabular-nums">
+              {loading ? (
+                <>
+                  <span className="sr-only">Cargando</span>
+                  <span aria-hidden="true">–</span>
+                </>
+              ) : (
+                item.value
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className={`size-4 shrink-0 ${open ? "rotate-180" : ""}`}>
+      <path d="m3.5 6 4.5 4.5L12.5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function EmptyGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" className="size-12 shrink-0">
+      <path d="M4 40c6-1 9-8 14-15s8-13 11-13 6 9 9 15 5 11 6 13" className="stroke-ink-soft" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="3 4" />
+      <path d="M29 12V4.5l7 2.6-7 2.6" className="stroke-contour" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="29" cy="12" r="2.6" className="fill-marker stroke-contour" strokeWidth="1.4" />
+    </svg>
   );
 }
 
@@ -88,6 +146,8 @@ export function Dashboard({ uid }: { uid: string }) {
   const noticeIdRef = useRef(0);
   // Remontar el formulario de creación (key) permite devolverle una misión rechazada.
   const [createForm, setCreateForm] = useState<{ key: number; initial?: QuestInput }>({ key: 0 });
+  // Formulario "Nueva misión" desplegado en pantallas estrechas (desde 1024 px siempre se ve).
+  const [formOpen, setFormOpen] = useState(false);
   const [focusTick, setFocusTick] = useState(0);
   const focusRequest = useRef<FocusRequest>(null);
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -99,13 +159,14 @@ export function Dashboard({ uid }: { uid: string }) {
     createDraftRef.current = draft;
   }, []);
   const [toRestore, setToRestore] = useState<SyncNotice | null>(null);
-  const [restoreFocusTick, setRestoreFocusTick] = useState(0);
+  const [titleFocusTick, setTitleFocusTick] = useState(0);
 
-  // Tras confirmar la restauración, el foco va al título. Corre después del efecto de
-  // ConfirmDialog (hijo), que al cerrar el <dialog> intentaría devolverlo al botón ya retirado.
+  // Enfoca el título del formulario de creación cuando se pide (restaurar, "Crear una misión").
+  // Corre después del efecto de ConfirmDialog (hijo), que al cerrar el <dialog>
+  // intentaría devolver el foco al botón ya retirado.
   useEffect(() => {
-    if (restoreFocusTick > 0) createTitleRef.current?.focus();
-  }, [restoreFocusTick]);
+    if (titleFocusTick > 0) createTitleRef.current?.focus();
+  }, [titleFocusTick]);
 
   useEffect(() => {
     const unsubscribe = subscribeToQuests(
@@ -118,7 +179,6 @@ export function Dashboard({ uid }: { uid: string }) {
 
   const quests = useMemo(() => (list.status === "ready" ? list.quests : []), [list]);
   const stats = useMemo(() => computeStats(quests), [quests]);
-  const level = useMemo(() => levelFromXp(stats.xpEarned), [stats.xpEarned]);
   const visible = useMemo(() => filterQuests(quests, filter), [quests, filter]);
 
   // QA-005: tras borrar, el foco va a la siguiente misión o al encabezado.
@@ -152,8 +212,15 @@ export function Dashboard({ uid }: { uid: string }) {
     [],
   );
 
+  /** Despliega "Nueva misión" (en móvil) y enfoca su título. */
+  function openCreateForm() {
+    setFormOpen(true);
+    setTitleFocusTick((n) => n + 1);
+  }
+
   function applyRestore(notice: SyncNotice) {
     if (!notice.restore) return;
+    setFormOpen(true);
     setCreateForm((current) => ({ key: current.key + 1, initial: notice.restore }));
     setSyncNotices((list) => removeNotice(list, notice.id));
   }
@@ -173,7 +240,7 @@ export function Dashboard({ uid }: { uid: string }) {
     setToRestore(null);
     if (!notice) return;
     applyRestore(notice);
-    setRestoreFocusTick((n) => n + 1);
+    setTitleFocusTick((n) => n + 1);
   }
 
   function retry() {
@@ -206,133 +273,80 @@ export function Dashboard({ uid }: { uid: string }) {
     }
   }
 
-  const statCards = [
-    { label: "Misiones", value: String(stats.total) },
-    { label: "Completadas", value: String(stats.completed) },
-    { label: "XP ganada", value: String(stats.xpEarned) },
-    { label: "Progreso", value: `${stats.progressPercent} %` },
-  ];
+  const empty = EMPTY_MESSAGES[filter];
 
   return (
-    <div className="flex flex-col gap-6">
-      <section aria-labelledby="stats-heading" aria-busy={loading || undefined} className="flex flex-col gap-3">
-        <h2 id="stats-heading" className="sr-only">
-          Estadísticas
-        </h2>
-        <div className="rounded-2xl bg-gradient-to-br from-indigo-700 to-violet-700 p-4 text-white shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <p className="text-sm font-medium text-indigo-100">
-              Nivel
-              <span className="ml-2 text-3xl font-bold tabular-nums text-white">
-                {loading ? "–" : level.level}
+    <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-x-8 lg:gap-y-6">
+      <RouteProfile quests={quests} stats={stats} loading={loading} />
+
+      {/* Columna de herramientas: fija al desplazar desde 1024 px. En móvil las estadísticas van primero. */}
+      <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto">
+        <section aria-labelledby="new-quest-heading" className={`${containerClass} p-4 sm:p-5`}>
+          <h2 id="new-quest-heading" className="font-display text-title font-bold tracking-tight">
+            <button
+              type="button"
+              aria-expanded={formOpen}
+              aria-controls={NEW_QUEST_REGION_ID}
+              onClick={() => setFormOpen((open) => !open)}
+              className="flex min-h-11 w-full items-center justify-between gap-3 rounded-control text-left lg:hidden"
+            >
+              <span>Nueva misión</span>
+              <span aria-hidden="true" className={`flex items-center gap-1.5 font-sans text-small font-semibold ${mutedText}`}>
+                {formOpen ? "Ocultar" : "Mostrar"}
+                <Chevron open={formOpen} />
               </span>
-            </p>
-            <p className="text-sm tabular-nums text-indigo-100">
-              {loading ? "Cargando…" : `${level.xpIntoLevel}/${level.xpIntoLevel + level.xpToNext} XP · faltan ${level.xpToNext} XP para el nivel ${level.level + 1}`}
-            </p>
-          </div>
-          <div
-            role="progressbar"
-            aria-label="Progreso del nivel"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={loading ? undefined : level.percent}
-            aria-valuetext={loading ? "Cargando" : `Nivel ${level.level}: ${level.xpIntoLevel} de ${level.xpIntoLevel + level.xpToNext} XP`}
-            className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/25"
-          >
-            <div
-              className="h-full rounded-full bg-amber-300 motion-safe:transition-[width]"
-              style={{ width: `${loading ? 0 : level.percent}%` }}
+            </button>
+            <span className="hidden lg:inline">Nueva misión</span>
+          </h2>
+          <div id={NEW_QUEST_REGION_ID} className={formOpen ? "mt-3 lg:mt-4" : "mt-3 max-lg:hidden lg:mt-4"}>
+            <QuestForm
+              key={createForm.key}
+              initial={createForm.initial}
+              focusOnMount={createForm.key > 0}
+              submitLabel="Crear misión"
+              pendingLabel="Creando…"
+              resetOnSuccess
+              successMessage="Misión creada."
+              titleRef={createTitleRef}
+              onDraftChange={handleCreateDraftChange}
+              errorMessage={translateFirestoreError}
+              onSubmit={(value, { retract }) =>
+                runWrite(createQuest(value), lateErrorHandler({ kind: "create", value }, retract))
+              }
             />
           </div>
-        </div>
+        </section>
 
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {statCards.map((stat) => (
-            <div key={stat.label} className={`${cardClass} min-w-0 p-4`}>
-              <dt className={`text-sm font-medium ${mutedText}`}>{stat.label}</dt>
-              <dd className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
-                {loading ? <span aria-label="Cargando">–</span> : stat.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <div>
-          <div
-            role="progressbar"
-            aria-label="Progreso de misiones completadas"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={stats.progressPercent}
-            aria-valuetext={`${stats.completed} de ${stats.total} misiones completadas (${stats.progressPercent} %)`}
-            className="h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
-          >
-            <div
-              className="h-full rounded-full bg-indigo-600 motion-safe:transition-[width] dark:bg-indigo-400"
-              style={{ width: `${stats.progressPercent}%` }}
-            />
-          </div>
-          <p className={`mt-1 text-xs ${mutedText}`}>
-            {stats.xpEarned} de {stats.xpAvailable} XP posibles
-          </p>
-        </div>
-      </section>
+        <StatsPanel stats={stats} loading={loading} className="order-first lg:order-none" />
+      </div>
 
-      <section aria-labelledby="new-quest-heading" className={`${cardClass} p-4 sm:p-6`}>
-        <h2 id="new-quest-heading" className="mb-3 text-lg font-semibold">
-          Nueva misión
-        </h2>
-        <QuestForm
-          key={createForm.key}
-          initial={createForm.initial}
-          focusOnMount={createForm.key > 0}
-          submitLabel="Crear misión"
-          pendingLabel="Creando…"
-          resetOnSuccess
-          successMessage="Misión creada."
-          titleRef={createTitleRef}
-          onDraftChange={handleCreateDraftChange}
-          errorMessage={translateFirestoreError}
-          onSubmit={(value, { retract }) =>
-            runWrite(createQuest(value), lateErrorHandler({ kind: "create", value }, retract))
-          }
-        />
-      </section>
-
-      <section aria-labelledby="quests-heading" className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section aria-labelledby="quests-heading" className="flex min-w-0 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2
             id="quests-heading"
             ref={listHeadingRef}
             tabIndex={-1}
-            className={`rounded text-lg font-semibold ${focusRing}`}
+            className="scroll-mt-6 rounded-control font-display text-title font-bold tracking-tight"
           >
             Tus misiones
           </h2>
           <div role="group" aria-label="Filtrar misiones" className="flex flex-wrap gap-2">
             {QUEST_FILTERS.map((value) => {
               const count = value === "all" ? stats.total : value === "active" ? stats.active : stats.completed;
+              const selected = filter === value;
               return (
                 <button
                   key={value}
                   type="button"
-                  aria-pressed={filter === value}
+                  aria-pressed={selected}
                   onClick={() => setFilter(value)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium ${focusRing} ${
-                    filter === value
-                      ? "border-indigo-700 bg-indigo-700 text-white"
-                      : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-small font-semibold ${
+                    selected ? "border-ink bg-ink text-paper" : "border-line text-ink hover:bg-ink/5"
                   }`}
                 >
                   {FILTER_LABELS[value]}
                   {!loading && (
-                    <span
-                      className={`rounded-full px-1.5 text-xs tabular-nums ${
-                        filter === value ? "bg-white/20" : "bg-slate-100 dark:bg-slate-800"
-                      }`}
-                    >
-                      {count}
-                    </span>
+                    <span className={`tabular-nums ${selected ? "text-paper" : mutedText}`}>{count}</span>
                   )}
                 </button>
               );
@@ -349,18 +363,14 @@ export function Dashboard({ uid }: { uid: string }) {
                   action={
                     <div className="flex flex-wrap gap-2">
                       {notice.restore && (
-                        <button
-                          type="button"
-                          onClick={() => restoreCreation(notice)}
-                          className={`${secondaryButton} px-3 py-1.5 text-sm`}
-                        >
+                        <button type="button" onClick={() => restoreCreation(notice)} className={buttonClass("secondary", "sm")}>
                           Restaurar en el formulario
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => setSyncNotices((list) => removeNotice(list, notice.id))}
-                        className={`${secondaryButton} px-3 py-1.5 text-sm`}
+                        className={buttonClass("secondary", "sm")}
                       >
                         Cerrar aviso
                       </button>
@@ -376,7 +386,7 @@ export function Dashboard({ uid }: { uid: string }) {
         {actionError && (
           <ErrorBox
             action={
-              <button type="button" onClick={() => setActionError(null)} className={`${secondaryButton} px-3 py-1.5 text-sm`}>
+              <button type="button" onClick={() => setActionError(null)} className={buttonClass("secondary", "sm")}>
                 Cerrar aviso
               </button>
             }
@@ -390,7 +400,7 @@ export function Dashboard({ uid }: { uid: string }) {
           <ErrorBox
             title="No se pudieron cargar las misiones"
             action={
-              <button type="button" onClick={retry} className={`${secondaryButton} px-3 py-1.5 text-sm`}>
+              <button type="button" onClick={retry} className={buttonClass("secondary", "sm")}>
                 Reintentar
               </button>
             }
@@ -399,24 +409,18 @@ export function Dashboard({ uid }: { uid: string }) {
           </ErrorBox>
         )}
         {list.status === "ready" && visible.length === 0 && (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-10 w-10 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4-3.9-3.8 5.4-.8L12 3z" />
-            </svg>
-            <div>
-              <p className="font-semibold">{EMPTY_MESSAGES[filter].title}</p>
-              <p className={`mt-1 text-sm ${mutedText}`}>{EMPTY_MESSAGES[filter].body}</p>
+          <div className={`${cardClass} flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:p-6`}>
+            <EmptyGlyph />
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-title font-bold tracking-tight">{empty.title}</p>
+              <p className={`mt-1 text-small ${mutedText}`}>{empty.body}</p>
             </div>
             {filter !== "all" && stats.total > 0 ? (
-              <button type="button" onClick={() => setFilter("all")} className={`${secondaryButton} px-3 py-1.5 text-sm`}>
+              <button type="button" onClick={() => setFilter("all")} className={buttonClass("secondary", "sm")}>
                 Ver todas las misiones
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => createTitleRef.current?.focus()}
-                className={`${secondaryButton} px-3 py-1.5 text-sm`}
-              >
+              <button type="button" onClick={openCreateForm} className={buttonClass("secondary", "sm")}>
                 Crear una misión
               </button>
             )}
@@ -455,7 +459,7 @@ export function Dashboard({ uid }: { uid: string }) {
         open={toDelete !== null}
         title="¿Eliminar misión?"
         message={toDelete ? `Se eliminará «${toDelete.title}» de forma permanente. Esta acción no se puede deshacer.` : ""}
-        confirmLabel="Eliminar"
+        confirmLabel="Eliminar misión"
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete(null)}
@@ -470,6 +474,7 @@ export function Dashboard({ uid }: { uid: string }) {
             : ""
         }
         confirmLabel="Sustituir borrador"
+        pendingLabel="Sustituyendo…"
         onConfirm={confirmRestore}
         onCancel={() => setToRestore(null)}
       />

@@ -1,61 +1,141 @@
 import type { ReactNode } from "react";
+import { logoRings } from "@/lib/contours";
 import type { Difficulty } from "@/lib/quests";
 
-/** Clases compartidas para mantener foco visible y contraste coherentes (AC-25). */
+/**
+ * Piezas visuales compartidas del sistema "Ruta". Solo usan tokens de
+ * globals.css (paleta, escala de texto y radios). El foco visible es global:
+ * contorno de 2 px en contour con 2 px de separación (globals.css).
+ */
 
-export const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-slate-900";
+export type ButtonVariant = "primary" | "secondary" | "danger" | "dangerQuiet" | "quiet";
+export type ButtonSize = "md" | "sm";
 
-export const primaryButton = `inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`;
+const BUTTON_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-control font-semibold select-none disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 
-export const secondaryButton = `inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 ${focusRing}`;
-
-export const fieldClass = `mt-1 block w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm placeholder:text-slate-500 focus:border-indigo-600 aria-[invalid=true]:border-red-600 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400 dark:aria-[invalid=true]:border-red-400 ${focusRing}`;
-
-export const cardClass =
-  "rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900";
-
-/** Texto secundario: slate-600 / slate-400 cumplen 4.5:1 sobre los fondos usados. */
-export const mutedText = "text-slate-600 dark:text-slate-400";
-
-export const DIFFICULTY_STYLES: Readonly<
-  Record<Difficulty, { badge: string; accent: string; choice: string; dot: string }>
-> = {
-  easy: {
-    badge: "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-800",
-    accent: "border-l-emerald-500 dark:border-l-emerald-500",
-    choice: "has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50 dark:has-[:checked]:border-emerald-500 dark:has-[:checked]:bg-emerald-950/60",
-    dot: "bg-emerald-500",
-  },
-  medium: {
-    badge: "bg-amber-100 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:ring-amber-800",
-    accent: "border-l-amber-500 dark:border-l-amber-500",
-    choice: "has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50 dark:has-[:checked]:border-amber-500 dark:has-[:checked]:bg-amber-950/60",
-    dot: "bg-amber-500",
-  },
-  hard: {
-    badge: "bg-rose-100 text-rose-900 ring-1 ring-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:ring-rose-800",
-    accent: "border-l-rose-500 dark:border-l-rose-500",
-    choice: "has-[:checked]:border-rose-600 has-[:checked]:bg-rose-50 dark:has-[:checked]:border-rose-500 dark:has-[:checked]:bg-rose-950/60",
-    dot: "bg-rose-500",
-  },
+const BUTTON_SIZES: Record<ButtonSize, string> = {
+  md: "min-h-11 px-5 text-body",
+  sm: "min-h-9 px-3 text-small",
 };
 
-export function Spinner({ className = "h-5 w-5" }: { className?: string }) {
+const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
+  // Texto paper sobre contour (nunca blanco): 5.22:1 en claro, 8.67:1 en oscuro.
+  primary: "bg-contour text-paper enabled:not-aria-disabled:hover:bg-ink",
+  secondary: "border border-line text-ink enabled:not-aria-disabled:hover:bg-ink/5",
+  danger: "bg-danger text-paper enabled:not-aria-disabled:hover:bg-ink",
+  dangerQuiet: "border border-line text-danger enabled:not-aria-disabled:hover:bg-danger/10",
+  quiet: "px-1 text-ink underline decoration-line underline-offset-4 enabled:hover:decoration-ink",
+};
+
+export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md", extra = ""): string {
+  const sizeClass = variant === "quiet" ? (size === "sm" ? "min-h-9 text-small" : "min-h-11 text-body") : BUTTON_SIZES[size];
+  return `${BUTTON_BASE} ${sizeClass} ${BUTTON_VARIANTS[variant]} ${extra}`.trim();
+}
+
+export const primaryButton = buttonClass("primary");
+export const secondaryButton = buttonClass("secondary");
+
+export const fieldClass =
+  "mt-1.5 block w-full min-w-0 rounded-control border border-line bg-paper px-3 py-2.5 text-body text-ink placeholder:text-ink-soft aria-[invalid=true]:border-danger";
+
+export const labelClass = "block text-small font-semibold text-ink";
+
+/** Contenedores (paneles y secciones): radio 20 px, borde ink al 10 %, sin sombra. */
+export const containerClass = "rounded-container border border-ink/10 bg-surface";
+
+/** Tarjetas: radio 14 px, borde ink al 10 %, sin sombra. */
+export const cardClass = "rounded-card border border-ink/10 bg-surface";
+
+/** Texto secundario: ink-soft cumple 6.25:1 o más sobre paper y surface en los dos temas. */
+export const mutedText = "text-ink-soft";
+
+/** Color del icono de cada terreno. El texto del terreno siempre va en ink (QA-012). */
+export const TERRAIN_COLOR: Readonly<Record<Difficulty, string>> = Object.freeze({
+  easy: "text-trail",
+  medium: "text-slope",
+  hard: "text-summit",
+});
+
+/** Icono de terreno: Sendero (camino ondulado), Ladera (loma de dos cimas), Cumbre (pico relleno). */
+export function TerrainIcon({ difficulty, className = "size-4" }: { difficulty: Difficulty; className?: string }) {
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
-      className={`motion-safe:animate-spin ${className}`}
+      data-terrain-icon={difficulty}
+      className={`shrink-0 ${TERRAIN_COLOR[difficulty]} ${className}`}
     >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      {difficulty === "easy" && (
+        <path
+          d="M1.25 11.5c1.7 0 2.5-3 4.4-3s2.6 3 4.45 3c1.7 0 2.4-1.75 4.65-1.75"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      )}
+      {difficulty === "medium" && (
+        <path
+          d="M1.25 13.25 6.4 5.6l2.9 3.9 1.85-2.05 3.6 5.8Z"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+      )}
+      {difficulty === "hard" && <path d="M1.5 14.25 8 1.75l6.5 12.5Z" fill="currentColor" />}
     </svg>
   );
 }
 
-/** Mensaje de error accesible (role="alert") con acción opcional. */
+const LOGO_RINGS = logoRings();
+
+/** Logo: tres curvas de nivel y la cima marcada. */
+export function Logo({ className = "size-8" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 32 32" fill="none" className={`shrink-0 ${className}`}>
+      {LOGO_RINGS.map((d, index) => (
+        <path
+          key={index}
+          d={d}
+          className="stroke-contour"
+          strokeWidth={index === LOGO_RINGS.length - 1 ? 1.7 : 1.35}
+          strokeLinejoin="round"
+        />
+      ))}
+      <circle cx="17.5" cy="14.5" r="2.5" className="fill-marker stroke-contour" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+export function CheckGlyph({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className={`shrink-0 ${className}`}>
+      <path d="m3.5 8.4 2.9 2.85L12.6 5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function Spinner({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className={`shrink-0 motion-safe:animate-spin ${className}`}>
+      <circle cx="12" cy="12" r="9.5" stroke="currentColor" strokeWidth="2.5" opacity="0.3" />
+      <path d="M21.5 12A9.5 9.5 0 0 0 12 2.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AlertGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="mt-px size-5 shrink-0 text-danger">
+      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M10 5.6v5.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="10" cy="14.2" r="1.05" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Mensaje de error accesible (role="alert") con acción opcional. Dice qué pasó y cómo seguir. */
 export function ErrorBox({
   title,
   children,
@@ -70,13 +150,16 @@ export function ErrorBox({
   return (
     <div
       role="alert"
-      className={`flex flex-col gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900 sm:flex-row sm:items-start sm:justify-between dark:border-red-800 dark:bg-red-950/50 dark:text-red-100 ${className}`}
+      className={`flex flex-col gap-3 rounded-card border border-danger bg-surface p-4 text-small text-ink sm:flex-row sm:items-start sm:justify-between ${className}`}
     >
-      <div className="min-w-0 wrap-anywhere">
-        {title && <p className="font-semibold">{title}</p>}
-        <div className={title ? "mt-0.5" : ""}>{children}</div>
+      <div className="flex min-w-0 gap-3">
+        <AlertGlyph />
+        <div className="min-w-0 wrap-anywhere">
+          {title && <p className="font-semibold text-ink">{title}</p>}
+          <div className={title ? "mt-0.5 text-ink-soft" : "text-ink"}>{children}</div>
+        </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="shrink-0 sm:pl-2">{action}</div>}
     </div>
   );
 }

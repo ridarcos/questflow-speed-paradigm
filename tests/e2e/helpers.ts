@@ -73,7 +73,7 @@ export function newQuestForm(page: Page) {
 export async function createQuest(
   page: Page,
   title: string,
-  options: { description?: string; difficulty?: "Fácil" | "Media" | "Difícil" } = {},
+  options: { description?: string; difficulty?: "Sendero" | "Ladera" | "Cumbre" } = {},
 ): Promise<void> {
   const form = newQuestForm(page);
   await form.getByLabel(/Título/).fill(title);
@@ -99,6 +99,6 @@ export function stat(page: Page, label: string) {
   return page.locator("dt", { hasText: new RegExp(`^${label}$`) }).locator("xpath=following-sibling::dd[1]");
 }
 
-export function filterButton(page: Page, name: "Todas" | "Activas" | "Completadas") {
+export function filterButton(page: Page, name: "Todas" | "Activas" | "Hechas") {
   return page.getByRole("group", { name: "Filtrar misiones" }).getByRole("button", { name: new RegExp(`^${name}`) });
 }

@@ -29,32 +29,32 @@ test("flujo completo: registro, CRUD, filtros, persistencia y cierre de sesión"
   await expect(stat(page, "Misiones")).toHaveText("0");
   await expect(stat(page, "Progreso")).toHaveText("0 %");
 
-  // Crear: una fácil y una difícil
-  await createQuest(page, "Leer 20 páginas", { description: "Antes de dormir", difficulty: "Fácil" });
+  // Crear: un sendero y una cumbre
+  await createQuest(page, "Leer 20 páginas", { description: "Antes de dormir", difficulty: "Sendero" });
   await expect(page.getByText("Misión creada.")).toBeVisible();
-  await createQuest(page, "Correr 5 km", { difficulty: "Difícil" });
+  await createQuest(page, "Correr 5 km", { difficulty: "Cumbre" });
   await expect(stat(page, "Misiones")).toHaveText("2");
   await expect(stat(page, "XP ganada")).toHaveText("0");
 
   // Completar
   const hard = questCard(page, "Correr 5 km");
   await hard.getByRole("button", { name: "Completar misión: Correr 5 km" }).click();
-  await expect(hard.getByText("Completada", { exact: true })).toBeVisible();
+  await expect(hard.getByText("Hecha", { exact: true })).toBeVisible();
   await expect(stat(page, "Completadas")).toHaveText("1");
   await expect(stat(page, "XP ganada")).toHaveText("50");
   await expect(stat(page, "Progreso")).toHaveText("50 %");
 
-  // Editar: título, descripción y dificultad
+  // Editar: título, descripción y terreno
   await questCard(page, "Leer 20 páginas").getByRole("button", { name: "Editar misión: Leer 20 páginas" }).click();
   const editor = page.locator("[data-quest-id] form");
   await editor.getByLabel(/Título/).fill("Leer 30 páginas");
   await editor.getByLabel(/Descripción/).fill("Novela del club de lectura");
-  await editor.getByRole("radio", { name: /Media/ }).check();
+  await editor.getByRole("radio", { name: /Ladera/ }).check();
   await editor.getByRole("button", { name: "Guardar cambios" }).click();
   const edited = questCard(page, "Leer 30 páginas");
   await expect(edited).toBeVisible();
   await expect(edited.getByText("Novela del club de lectura")).toBeVisible();
-  await expect(edited.getByText("Media", { exact: true })).toBeVisible();
+  await expect(edited.getByText("Ladera", { exact: true })).toBeVisible();
   await expect(edited.getByText("25 XP", { exact: true })).toBeVisible();
   await expect(questCard(page, "Leer 20 páginas")).toHaveCount(0);
 
@@ -65,8 +65,8 @@ test("flujo completo: registro, CRUD, filtros, persistencia y cierre de sesión"
   await expect(questCard(page, "Leer 30 páginas")).toBeVisible();
   await expect(questCard(page, "Correr 5 km")).toHaveCount(0);
 
-  await filterButton(page, "Completadas").click();
-  await expect(filterButton(page, "Completadas")).toHaveAttribute("aria-pressed", "true");
+  await filterButton(page, "Hechas").click();
+  await expect(filterButton(page, "Hechas")).toHaveAttribute("aria-pressed", "true");
   await expect(questCard(page, "Correr 5 km")).toBeVisible();
   await expect(questCard(page, "Leer 30 páginas")).toHaveCount(0);
 

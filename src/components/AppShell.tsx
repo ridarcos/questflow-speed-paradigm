@@ -1,31 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { translateAuthError } from "@/lib/authErrors";
 import { AuthProvider, useAuth } from "./AuthProvider";
 import { AuthScreen } from "./AuthScreen";
 import { ConfigNotice } from "./ConfigNotice";
 import { Dashboard } from "./Dashboard";
-import { ErrorBox, mutedText, secondaryButton, Spinner } from "./ui";
-
-function UserBar() {
-  const { status, user } = useAuth();
-  if (status !== "signed-in" || !user) return null;
-  // key por UID: cada sesión monta una barra nueva, así el estado "Cerrando…" de
-  // la sesión anterior no se arrastra al volver a iniciar sesión sin recargar.
-  return <SignedInBar key={user.uid} />;
-}
+import { buttonClass, ErrorBox, Logo, mutedText, Spinner } from "./ui";
 
 function SignedInBar() {
   const { user, signOut } = useAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!user) return null;
-  const name = user.displayName || user.email || "Usuario";
+  const name = user.displayName || user.email || "Tu cuenta";
 
   return (
-    <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-3 gap-y-1">
-      <p className="min-w-0 max-w-[14rem] truncate text-sm text-slate-700 sm:max-w-xs dark:text-slate-300" title={user.email ?? undefined}>
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+      <p className={`min-w-0 max-w-[11rem] truncate text-small sm:max-w-xs ${mutedText}`} title={user.email ?? undefined}>
         <span className="sr-only">Sesión iniciada como </span>
         {name}
       </p>
@@ -43,16 +35,31 @@ function SignedInBar() {
             setPending(false);
           }
         }}
-        className={`${secondaryButton} shrink-0 px-3 py-1.5 text-sm`}
+        className={buttonClass("secondary", "sm", "shrink-0")}
       >
         {pending ? "Cerrando…" : "Cerrar sesión"}
       </button>
       {error && (
-        <p role="alert" className="w-full text-right text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="w-full text-right text-small text-danger">
           {error}
         </p>
       )}
     </div>
+  );
+}
+
+function Header({ actions }: { actions?: ReactNode }) {
+  return (
+    <header className="border-b border-ink/10">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Logo className="size-8" />
+          <h1 className="font-display text-title font-bold tracking-tight">QuestFlow</h1>
+          <p className={`hidden text-small md:block ${mutedText}`}>Misiones personales con XP</p>
+        </div>
+        {actions}
+      </div>
+    </header>
   );
 }
 
@@ -68,18 +75,18 @@ function MainContent() {
           role="status"
           aria-live="polite"
           aria-busy="true"
-          className={`flex items-center justify-center gap-3 py-16 text-sm ${mutedText}`}
+          className={`flex items-center justify-center gap-3 py-16 text-body ${mutedText}`}
         >
-          <Spinner className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <Spinner className="size-6 text-contour" />
           Comprobando sesión…
         </div>
       );
     case "error":
       return (
         <ErrorBox
-          title="Error de autenticación"
+          title="No se pudo comprobar tu sesión"
           action={
-            <button type="button" onClick={() => window.location.reload()} className={`${secondaryButton} px-3 py-1.5 text-sm`}>
+            <button type="button" onClick={() => window.location.reload()} className={buttonClass("secondary", "sm")}>
               Reintentar
             </button>
           }
@@ -94,33 +101,25 @@ function MainContent() {
   }
 }
 
+function Shell() {
+  const { status, user } = useAuth();
+  // key por UID: cada sesión monta una barra nueva, así el estado "Cerrando…" de
+  // la sesión anterior no se arrastra al volver a iniciar sesión sin recargar.
+  const actions = status === "signed-in" && user ? <SignedInBar key={user.uid} /> : undefined;
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      <Header actions={actions} />
+      <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
+        <MainContent />
+      </main>
+    </div>
+  );
+}
+
 export function AppShell() {
   return (
     <AuthProvider>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-lg font-black text-white shadow-sm"
-              >
-                Q
-              </span>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold tracking-tight text-indigo-700 dark:text-indigo-300">
-                  QuestFlow
-                </h1>
-                <p className={`hidden text-sm sm:block ${mutedText}`}>Misiones personales con XP</p>
-              </div>
-            </div>
-            <UserBar />
-          </div>
-        </header>
-        <main className="mx-auto flex w-full min-w-0 max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-          <MainContent />
-        </main>
-      </div>
+      <Shell />
     </AuthProvider>
   );
 }

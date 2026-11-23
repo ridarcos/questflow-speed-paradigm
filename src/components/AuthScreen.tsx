@@ -18,12 +18,18 @@ import {
   type CredentialErrors,
 } from "@/lib/authErrors";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { DIFFICULTIES, DIFFICULTY_LABELS, xpFor, type Difficulty } from "@/lib/quests";
 import { useAuth } from "./AuthProvider";
-import { ErrorBox, focusRing, mutedText, primaryButton, secondaryButton, fieldClass } from "./ui";
+import { ContourMap } from "./ContourMap";
+import { buttonClass, containerClass, ErrorBox, fieldClass, labelClass, mutedText, TerrainIcon } from "./ui";
 
 type Mode = "signin" | "signup";
 
-const inputClass = fieldClass;
+const TERRAIN_HINTS: Readonly<Record<Difficulty, string>> = {
+  easy: "Tareas de un rato: una llamada, un recado.",
+  medium: "Lo que te pide una tarde de esfuerzo.",
+  hard: "Los retos que llevas tiempo aplazando.",
+};
 
 /**
  * Pantalla de acceso. El error de signInWithRedirect vive en el contexto de
@@ -126,120 +132,142 @@ export function AuthScreen() {
   const isSignup = mode === "signup";
 
   return (
-    <section
-      aria-labelledby={`${id}-title`}
-      className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-    >
-      <h2 id={`${id}-title`} className="text-xl font-semibold">
-        {isSignup ? "Crea tu cuenta" : "Inicia sesión"}
-      </h2>
-      <p className={`mt-1 text-sm ${mutedText}`}>
-        Tus misiones se guardan en tu cuenta y solo tú puedes verlas.
-      </p>
-
-      <div role="group" aria-label="Modo de acceso" className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
-        {(["signin", "signup"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={mode === value}
-            onClick={() => switchMode(value)}
-            disabled={pending}
-            className={`rounded-md px-3 py-2 text-sm font-medium disabled:opacity-60 ${focusRing} ${
-              mode === value
-                ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-950 dark:text-indigo-300"
-                : "text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-            }`}
-          >
-            {value === "signin" ? "Iniciar sesión" : "Crear cuenta"}
-          </button>
-        ))}
+    <div className="grid w-full min-w-0 gap-5 lg:min-h-[36rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:grid-rows-[minmax(0,1fr)_auto] lg:gap-x-10 lg:gap-y-0">
+      {/* Mapa: franja baja arriba en móvil, columna izquierda desde 1024 px. */}
+      <div className="relative col-start-1 row-start-1 min-h-28 overflow-hidden rounded-container border border-ink/10 lg:row-end-3">
+        <ContourMap className="absolute inset-0 size-full" />
       </div>
 
-      <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor={emailId} className="block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id={emailId}
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-invalid={fieldErrors.email ? true : undefined}
-            aria-describedby={fieldErrors.email ? `${emailId}-error` : undefined}
-            className={inputClass}
-          />
-          {fieldErrors.email && (
-            <p id={`${emailId}-error`} role="alert" className="mt-1 text-sm text-red-700 dark:text-red-400">
-              {fieldErrors.email}
-            </p>
-          )}
-        </div>
-        <div>
-          <label htmlFor={passwordId} className="block text-sm font-medium">
-            Contraseña
-          </label>
-          <input
-            id={passwordId}
-            type="password"
-            autoComplete={isSignup ? "new-password" : "current-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={fieldErrors.password ? true : undefined}
-            aria-describedby={`${passwordId}-hint${fieldErrors.password ? ` ${passwordId}-error` : ""}`}
-            className={inputClass}
-          />
-          <p id={`${passwordId}-hint`} className={`mt-1 text-xs ${mutedText}`}>
-            Mínimo {PASSWORD_MIN_LENGTH} caracteres.
-          </p>
-          {fieldErrors.password && (
-            <p id={`${passwordId}-error`} role="alert" className="mt-1 text-sm text-red-700 dark:text-red-400">
-              {fieldErrors.password}
-            </p>
-          )}
-        </div>
-
-        {error && <ErrorBox>{error}</ErrorBox>}
-        <p aria-live="polite" className="text-sm text-emerald-700 dark:text-emerald-400">
-          {info}
+      <div className="relative col-start-1 row-start-1 flex min-w-0 flex-col justify-center px-5 py-6 lg:justify-start lg:px-10 lg:pt-14">
+        <p className="max-w-[16ch] font-display text-heading font-bold tracking-tight text-balance lg:text-display">
+          Cada misión, un tramo de tu ruta
         </p>
-
-        <button
-          type="submit"
-          disabled={pending}
-          aria-busy={pending || undefined}
-          className={`${primaryButton} w-full py-2.5`}
-        >
-          {pending ? "Procesando…" : isSignup ? "Crear cuenta" : "Iniciar sesión"}
-        </button>
-        {!isSignup && (
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={pending}
-            className={`rounded text-sm font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900 disabled:opacity-60 dark:text-indigo-300 ${focusRing}`}
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-        )}
-      </form>
-
-      <div className="my-5 flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
-        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />o
-        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
+        <p className={`mt-4 hidden max-w-sm text-body lg:block ${mutedText}`}>
+          Elige el terreno de cada misión, complétala y mira cómo avanza tu perfil de ruta.
+        </p>
       </div>
 
-      <button
-        type="button"
-        onClick={handleGoogle}
-        disabled={pending}
-        className={`${secondaryButton} w-full py-2.5 font-semibold`}
+      <section
+        aria-labelledby={`${id}-title`}
+        className={`${containerClass} row-start-2 min-w-0 p-5 sm:p-7 lg:col-start-2 lg:row-start-1 lg:row-end-3 lg:self-center`}
       >
-        Continuar con Google
-      </button>
-    </section>
+        <h2 id={`${id}-title`} className="font-display text-heading font-bold tracking-tight">
+          {isSignup ? "Crea tu cuenta" : "Inicia sesión"}
+        </h2>
+        <p className={`mt-1 text-small ${mutedText}`}>Tus misiones se guardan en tu cuenta y solo tú puedes verlas.</p>
+
+        <div
+          role="group"
+          aria-label="Modo de acceso"
+          className="mt-5 grid grid-cols-2 gap-1 rounded-full border border-line p-1"
+        >
+          {(["signin", "signup"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              onClick={() => switchMode(value)}
+              disabled={pending}
+              className={`min-h-10 rounded-full px-3 text-small font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                mode === value ? "bg-ink text-paper" : "text-ink enabled:hover:bg-ink/5"
+              }`}
+            >
+              {value === "signin" ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          ))}
+        </div>
+
+        <form className="mt-5 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+          <div>
+            <label htmlFor={emailId} className={labelClass}>
+              Email
+            </label>
+            <input
+              id={emailId}
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={fieldErrors.email ? true : undefined}
+              aria-describedby={fieldErrors.email ? `${emailId}-error` : undefined}
+              className={fieldClass}
+            />
+            {fieldErrors.email && (
+              <p id={`${emailId}-error`} role="alert" className="mt-1.5 text-small text-danger">
+                {fieldErrors.email}
+              </p>
+            )}
+          </div>
+          <div>
+            <label htmlFor={passwordId} className={labelClass}>
+              Contraseña
+            </label>
+            <input
+              id={passwordId}
+              type="password"
+              autoComplete={isSignup ? "new-password" : "current-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={fieldErrors.password ? true : undefined}
+              aria-describedby={`${passwordId}-hint${fieldErrors.password ? ` ${passwordId}-error` : ""}`}
+              className={fieldClass}
+            />
+            <p id={`${passwordId}-hint`} className={`mt-1.5 text-small ${mutedText}`}>
+              Mínimo {PASSWORD_MIN_LENGTH} caracteres.
+            </p>
+            {fieldErrors.password && (
+              <p id={`${passwordId}-error`} role="alert" className="mt-1 text-small text-danger">
+                {fieldErrors.password}
+              </p>
+            )}
+          </div>
+
+          {error && <ErrorBox>{error}</ErrorBox>}
+          {info && (
+            <p aria-live="polite" className="text-small text-ink">
+              {info}
+            </p>
+          )}
+
+          <button type="submit" disabled={pending} aria-busy={pending || undefined} className={buttonClass("primary", "md", "w-full")}>
+            {pending ? "Procesando…" : isSignup ? "Crear cuenta" : "Iniciar sesión"}
+          </button>
+          {!isSignup && (
+            <button type="button" onClick={handleReset} disabled={pending} className={buttonClass("quiet", "sm", "self-start")}>
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
+        </form>
+
+        <div className={`my-5 flex items-center gap-3 text-small ${mutedText}`}>
+          <span className="h-px flex-1 bg-ink/10" aria-hidden="true" />o
+          <span className="h-px flex-1 bg-ink/10" aria-hidden="true" />
+        </div>
+
+        <button type="button" onClick={handleGoogle} disabled={pending} className={buttonClass("secondary", "md", "w-full")}>
+          Continuar con Google
+        </button>
+      </section>
+
+      <ul
+        aria-label="Terrenos y XP"
+        className="relative row-start-3 flex min-w-0 flex-col gap-4 px-1 pb-2 lg:col-start-1 lg:row-start-2 lg:px-10 lg:pb-10"
+      >
+        {DIFFICULTIES.map((difficulty) => (
+          <li key={difficulty} className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-surface">
+              <TerrainIcon difficulty={difficulty} className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-body font-semibold">
+                {DIFFICULTY_LABELS[difficulty]} <span className={`font-normal ${mutedText}`}>· {xpFor(difficulty)} XP</span>
+              </p>
+              <p className={`text-small ${mutedText}`}>{TERRAIN_HINTS[difficulty]}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

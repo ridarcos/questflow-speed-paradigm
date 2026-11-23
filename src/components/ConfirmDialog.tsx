@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import { secondaryButton, Spinner } from "./ui";
+import { buttonClass, Spinner } from "./ui";
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
   confirmLabel: string;
+  pendingLabel?: string;
   pending?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -16,12 +17,14 @@ interface ConfirmDialogProps {
 /**
  * Diálogo modal accesible basado en <dialog> nativo: showModal() aporta el foco
  * atrapado, Escape para cerrar y el fondo inerte. El foco inicial va a "Cancelar".
+ * Comprueba dialog.open antes de showModal(): en StrictMode el efecto corre dos veces.
  */
 export function ConfirmDialog({
   open,
   title,
   message,
   confirmLabel,
+  pendingLabel = "Eliminando…",
   pending = false,
   onConfirm,
   onCancel,
@@ -50,22 +53,16 @@ export function ConfirmDialog({
         event.preventDefault();
         if (!pending) onCancel();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl backdrop:bg-slate-950/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-container border border-ink/10 bg-surface p-6 text-ink backdrop:bg-ink/40"
     >
-      <h2 id={`${id}-title`} className="text-lg font-semibold">
+      <h2 id={`${id}-title`} className="font-display text-title font-bold tracking-tight">
         {title}
       </h2>
-      <p id={`${id}-desc`} className="mt-2 text-sm wrap-anywhere text-slate-700 dark:text-slate-300">
+      <p id={`${id}-desc`} className="mt-2 text-body text-ink-soft wrap-anywhere">
         {message}
       </p>
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button
-          ref={cancelRef}
-          type="button"
-          onClick={onCancel}
-          disabled={pending}
-          className={secondaryButton}
-        >
+        <button ref={cancelRef} type="button" onClick={onCancel} disabled={pending} className={buttonClass("secondary")}>
           Cancelar
         </button>
         <button
@@ -73,10 +70,10 @@ export function ConfirmDialog({
           onClick={onConfirm}
           disabled={pending}
           aria-busy={pending || undefined}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-60 dark:focus-visible:ring-red-400 dark:focus-visible:ring-offset-slate-900"
+          className={buttonClass("danger")}
         >
-          {pending && <Spinner className="h-4 w-4" />}
-          {pending ? "Eliminando…" : confirmLabel}
+          {pending && <Spinner className="size-4" />}
+          {pending ? pendingLabel : confirmLabel}
         </button>
       </div>
     </dialog>

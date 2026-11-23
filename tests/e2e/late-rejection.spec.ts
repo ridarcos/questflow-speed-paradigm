@@ -43,7 +43,7 @@ test("un rechazo tardío retira el aviso de éxito y nombra cada cambio perdido"
   // Creación sin conexión: se acepta en local y el aviso dice que está sin conexión.
   await form.getByLabel(/Título/).fill("Tardia");
   await form.getByLabel(/Descripción/).fill("Texto que no debe perderse");
-  await form.getByRole("radio", { name: /Difícil/ }).check();
+  await form.getByRole("radio", { name: /Cumbre/ }).check();
   await form.getByRole("button", { name: "Crear misión" }).click();
   await expect(form.getByText(/Misión creada\..*al recuperar la conexión/)).toBeVisible();
   await expect(questCard(page, "Tardia").getByText("Pendiente de sincronizar")).toBeVisible();
@@ -88,7 +88,7 @@ test("un rechazo tardío retira el aviso de éxito y nombra cada cambio perdido"
   await expect(form.getByLabel(/Título/)).toHaveValue("Tardia");
   await expect(form.getByLabel(/Título/)).toBeFocused();
   await expect(form.getByLabel(/Descripción/)).toHaveValue("Texto que no debe perderse");
-  await expect(form.getByRole("radio", { name: /Difícil/ })).toBeChecked();
+  await expect(form.getByRole("radio", { name: /Cumbre/ })).toBeChecked();
   await expect(notices).toHaveCount(1);
 
   // Cerrar el aviso restante.

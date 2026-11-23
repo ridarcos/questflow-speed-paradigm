@@ -17,7 +17,7 @@ import {
 import { EMPTY_DRAFT, shouldResetAfterSubmit, type FormDraft } from "@/lib/formDraft";
 import { queuedSuccessMessage } from "@/lib/syncNotices";
 import type { WriteOutcome } from "@/lib/writes";
-import { DIFFICULTY_STYLES, ErrorBox, fieldClass, mutedText, primaryButton, secondaryButton, Spinner } from "./ui";
+import { buttonClass, CheckGlyph, ErrorBox, fieldClass, labelClass, mutedText, Spinner, TerrainIcon } from "./ui";
 
 interface QuestFormProps {
   initial?: QuestInput;
@@ -48,13 +48,13 @@ interface QuestFormProps {
 
 const toneClass: Record<CharCountTone, string> = {
   ok: mutedText,
-  near: "font-medium text-amber-800 dark:text-amber-300",
-  limit: "font-semibold text-red-700 dark:text-red-400",
+  near: "font-semibold text-ink",
+  limit: "font-semibold text-danger",
 };
 
 function CharCount({ id, length, max }: { id: string; length: number; max: number }) {
   return (
-    <p id={id} className={`text-xs tabular-nums ${toneClass[charCountTone(length, max)]}`}>
+    <p id={id} className={`text-small tabular-nums ${toneClass[charCountTone(length, max)]}`}>
       <span className="sr-only">Caracteres usados: </span>
       {length}/{max}
     </p>
@@ -69,7 +69,7 @@ export function QuestForm({
   onCancel,
   resetOnSuccess = false,
   successMessage,
-  errorMessage = () => "No se pudo guardar la misión.",
+  errorMessage = () => "No se pudo guardar la misión. Revisa tu conexión y vuelve a intentarlo.",
   focusOnMount = false,
   titleRef,
   onDraftChange,
@@ -153,11 +153,11 @@ export function QuestForm({
     `${base}-count${hasError ? ` ${base}-error` : ""}`;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="@container flex min-w-0 flex-col gap-4">
       <div>
         <div className="flex items-end justify-between gap-2">
-          <label htmlFor={titleId} className="block text-sm font-medium">
-            Título <span aria-hidden="true" className="text-red-700 dark:text-red-400">*</span>
+          <label htmlFor={titleId} className={labelClass}>
+            Título <span aria-hidden="true" className="text-danger">*</span>
             <span className="sr-only">(obligatorio)</span>
           </label>
           <CharCount id={`${titleId}-count`} length={title.length} max={TITLE_MAX_LENGTH} />
@@ -170,7 +170,7 @@ export function QuestForm({
           autoComplete="off"
           maxLength={TITLE_MAX_LENGTH}
           value={title}
-          placeholder="Ej.: Salir a correr 5 km"
+          placeholder="Por ejemplo, salir a correr 5 km"
           onChange={(e) => {
             updateDraft({ title: e.target.value });
             setInfo(null);
@@ -181,7 +181,7 @@ export function QuestForm({
           className={fieldClass}
         />
         {errors.title && (
-          <p id={`${titleId}-error`} role="alert" className="mt-1 text-sm text-red-700 dark:text-red-400">
+          <p id={`${titleId}-error`} role="alert" className="mt-1.5 text-small text-danger">
             {errors.title}
           </p>
         )}
@@ -189,7 +189,7 @@ export function QuestForm({
 
       <div>
         <div className="flex items-end justify-between gap-2">
-          <label htmlFor={descId} className="block text-sm font-medium">
+          <label htmlFor={descId} className={labelClass}>
             Descripción <span className={`font-normal ${mutedText}`}>(opcional)</span>
           </label>
           <CharCount id={`${descId}-count`} length={description.length} max={DESCRIPTION_MAX_LENGTH} />
@@ -205,56 +205,56 @@ export function QuestForm({
           className={`${fieldClass} resize-y`}
         />
         {errors.description && (
-          <p id={`${descId}-error`} role="alert" className="mt-1 text-sm text-red-700 dark:text-red-400">
+          <p id={`${descId}-error`} role="alert" className="mt-1.5 text-small text-danger">
             {errors.description}
           </p>
         )}
       </div>
 
-      <fieldset>
-        <legend className="text-sm font-medium">Dificultad</legend>
-        <div className="mt-1 grid grid-cols-3 gap-2">
+      <fieldset className="min-w-0">
+        <legend className={labelClass}>Terreno</legend>
+        <div className="mt-2 grid gap-2 @xl:grid-cols-3">
           {DIFFICULTIES.map((value) => (
             <label
               key={value}
-              className={`relative flex min-w-0 cursor-pointer flex-col items-center gap-0.5 rounded-lg border-2 border-slate-200 bg-white px-2 py-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-600 has-[:focus-visible]:ring-offset-2 dark:border-slate-700 dark:bg-slate-950 dark:has-[:focus-visible]:ring-indigo-400 dark:has-[:focus-visible]:ring-offset-slate-900 ${DIFFICULTY_STYLES[value].choice}`}
+              className="group relative flex min-h-11 min-w-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-paper px-4 text-small has-[:checked]:border-contour has-[:checked]:bg-contour/10"
             >
+              {/* Radio nativo sin apariencia que cubre el chip: flechas, foco visible propio y nombre por la etiqueta. */}
               <input
                 type="radio"
                 name={`${id}-difficulty`}
                 value={value}
                 checked={difficulty === value}
                 onChange={() => updateDraft({ difficulty: value })}
-                className="absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none rounded-lg opacity-0"
+                className="absolute inset-0 m-0 size-full cursor-pointer appearance-none rounded-full bg-transparent"
               />
-              <span className="flex items-center gap-1.5 text-sm font-semibold">
-                <span aria-hidden="true" className={`h-2 w-2 rounded-full ${DIFFICULTY_STYLES[value].dot}`} />
-                {DIFFICULTY_LABELS[value]}
-              </span>
-              <span className={`text-xs tabular-nums ${mutedText}`}>{xpFor(value)} XP</span>
+              <TerrainIcon difficulty={value} />
+              <span className="font-semibold text-ink">{DIFFICULTY_LABELS[value]}</span>
+              <span className={`ml-auto tabular-nums ${mutedText}`}>{xpFor(value)} XP</span>
+              <CheckGlyph className="hidden size-4 text-contour group-has-[:checked]:block" />
             </label>
           ))}
         </div>
         {errors.difficulty && (
-          <p role="alert" className="mt-1 text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="mt-1.5 text-small text-danger">
             {errors.difficulty}
           </p>
         )}
       </fieldset>
 
       {submitError && <ErrorBox title="No se pudo guardar">{submitError}</ErrorBox>}
-      <p aria-live="polite" className="text-sm text-emerald-800 dark:text-emerald-300">
-        {info?.text}
-      </p>
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-3">
+        <p aria-live="polite" className="mr-auto min-w-0 text-small text-ink">
+          {info?.text}
+        </p>
         {onCancel && (
-          <button type="button" onClick={onCancel} disabled={pending} className={secondaryButton}>
+          <button type="button" onClick={onCancel} disabled={pending} className={buttonClass("secondary")}>
             Cancelar
           </button>
         )}
-        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={primaryButton}>
-          {pending && <Spinner className="h-4 w-4" />}
+        <button type="submit" disabled={pending} aria-busy={pending || undefined} className={buttonClass("primary")}>
+          {pending && <Spinner className="size-4" />}
           {pending ? pendingLabel : submitLabel}
         </button>
       </div>
