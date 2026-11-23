@@ -9,6 +9,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 1 | 2026-11-23 | 0 | testing | Revisar criterios y alcance; auditar `firestore.rules` antes de implementar | FAIL: QA-001, QA-002 y QA-003 en las reglas. Propuso AC-NEW-01 a AC-NEW-04 | Informe Testing #1 | Fase 1 (#3) |
 | 2 | 2026-11-23 | 1 | develop | Bootstrap Next.js + Tailwind + Firebase, UI básica y corrección de QA-001 a QA-003 | Entregado en el commit `c4062da`. lint, typecheck, test (8/8) y build OK sin `.env.local`. Avisos: npm audit muestra 4 altos (grpc-js transitivo) y firebase 13 pide Node ≥24.12 | Entrega Develop Fase 1 | #3 |
 | 3 | 2026-11-23 | 1 | testing | Revisión independiente de la Fase 1 y retest de QA-001 a QA-003 | **PASS** en AC-01 a AC-06, AC-17, SEC-01 y SEC-02. 29 casos de reglas en el emulador de Firestore, 0 fallos. Playwright: 0 errores de consola y sin scroll horizontal a 360 px | Informe Testing #3 (clon limpio en /tmp) | QA-001 a QA-003 cerrados |
+| 4 | 2026-11-23 | 2 | develop | Login con Email/Contraseña y Google, CRUD en `users/{uid}/quests`, estadísticas, filtros, emuladores y tests de reglas | Entregado en el commit `292512a`. lint, typecheck, test 39/39, test:rules 34/34 y build OK. La prueba de mutación de las reglas hizo fallar 2 tests, como se esperaba. El smoke con Playwright y emuladores pasó. Google no se probó de verdad | Entrega Develop Fase 2 | Pendiente: #5 |
 
 ## Hallazgos y correcciones
 
