@@ -10,8 +10,9 @@ const CONTOURS = accessMapContours();
  * Desde 1024 px el lema, la descripción y los terrenos van encima del mapa, así
  * que el trazo es también el fondo más oscuro (o más claro, en oscuro) que
  * puede tener ese texto. Los anillos no se cruzan, de modo que ningún píxel
- * pasa del color del trazo: ink-soft conserva 4.78:1 en claro y 6.11:1 en
- * oscuro (QA-014; al 25 % en claro bajaba a 4.43:1).
+ * pasa del color del trazo: ink-soft conserva 4.73:1 en claro (medido en
+ * Chromium; 4.78:1 por cálculo en sRGB) y 6.11:1 en oscuro (QA-014; al 25 % en
+ * claro bajaba a 4.43:1).
  *
  * `slice` hace que cubra cualquier proporción: franja baja en móvil y columna
  * alta en escritorio.
