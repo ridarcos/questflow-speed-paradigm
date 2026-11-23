@@ -72,6 +72,7 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 - **AC-30** Tests unitarios (Vitest) para XP, validación, filtros y estadísticas, todos pasando.
 - **AC-31** Al menos un E2E (Playwright) del flujo crear → completar → editar → eliminar. Si requiere Firebase/emulador no disponible: BLOCKED documentado con el comando para ejecutarlo.
 - **AC-35** Tests de reglas con `@firebase/rules-unit-testing` y el emulador (`npm run test:rules`) que cubren acceso cruzado, campos extra, timestamps y título vacío. Si el emulador no puede descargarse → BLOCKED con causa.
+- **AC-36** `package.json` declara `"engines": { "node": ">=24.12" }` (lo exige firebase 13) y el build de Vercel usa Node 24.
 - **AC-32** README con setup local, variables de entorno, publicación de reglas, despliegue en Vercel y prueba en incógnito.
 - **AC-33** `docs/HANDOFF_LOG.md` refleja delegaciones y resultados reales.
 - **AC-34** Producción: URL pública de Vercel abre en incógnito sin login de Vercel; se puede registrar una cuenta con email, crear una misión y conservarla tras recargar y tras cerrar e iniciar sesión. Google Sign-in funciona en el dominio de Vercel (añadido a dominios autorizados de Firebase Auth). Sin URL real → BLOCKED.
