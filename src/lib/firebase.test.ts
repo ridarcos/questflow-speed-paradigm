@@ -47,3 +47,14 @@ describe("isFirebaseConfigured", () => {
     expect(isFirebaseConfigured(fullEnv)).toBe(true);
   });
 });
+
+describe("shouldUseEmulators", () => {
+  it("solo se activa con el valor exacto 'true'", async () => {
+    const { shouldUseEmulators } = await import("./firebase");
+    expect(shouldUseEmulators("true")).toBe(true);
+    expect(shouldUseEmulators(undefined)).toBe(false);
+    expect(shouldUseEmulators("")).toBe(false);
+    expect(shouldUseEmulators("1")).toBe(false);
+    expect(shouldUseEmulators("TRUE")).toBe(false);
+  });
+});

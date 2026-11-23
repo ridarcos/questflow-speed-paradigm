@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
 
 /**
  * Único punto de inicialización de Firebase en QuestFlow.
@@ -81,10 +81,48 @@ export function getFirebaseApp(): FirebaseApp {
   });
 }
 
+/** Hosts fijos de los emuladores locales (coinciden con firebase.json). */
+export const AUTH_EMULATOR_URL = "http://127.0.0.1:9099";
+export const FIRESTORE_EMULATOR_HOST = "127.0.0.1";
+export const FIRESTORE_EMULATOR_PORT = 8080;
+
+/** true solo si NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" (función pura). */
+export function shouldUseEmulators(
+  value: string | undefined = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS,
+): boolean {
+  return value === "true";
+}
+
+// Registro de instancias ya conectadas al emulador. Vive en globalThis para que
+// el HMR de desarrollo no intente conectar dos veces la misma instancia.
+type EmulatorRegistry = { auth: WeakSet<Auth>; db: WeakSet<Firestore> };
+const REGISTRY_KEY = Symbol.for("questflow.firebaseEmulators");
+function emulatorRegistry(): EmulatorRegistry {
+  const store = globalThis as unknown as Record<symbol, EmulatorRegistry | undefined>;
+  store[REGISTRY_KEY] ??= { auth: new WeakSet(), db: new WeakSet() };
+  return store[REGISTRY_KEY];
+}
+
 export function getFirebaseAuth(): Auth {
-  return getAuth(getFirebaseApp());
+  const auth = getAuth(getFirebaseApp());
+  if (shouldUseEmulators()) {
+    const registry = emulatorRegistry();
+    if (!registry.auth.has(auth)) {
+      connectAuthEmulator(auth, AUTH_EMULATOR_URL, { disableWarnings: true });
+      registry.auth.add(auth);
+    }
+  }
+  return auth;
 }
 
 export function getDb(): Firestore {
-  return getFirestore(getFirebaseApp());
+  const db = getFirestore(getFirebaseApp());
+  if (shouldUseEmulators()) {
+    const registry = emulatorRegistry();
+    if (!registry.db.has(db)) {
+      connectFirestoreEmulator(db, FIRESTORE_EMULATOR_HOST, FIRESTORE_EMULATOR_PORT);
+      registry.db.add(db);
+    }
+  }
+  return db;
 }
