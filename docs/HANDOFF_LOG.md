@@ -26,6 +26,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 18 | 2026-11-23 | 5 | develop | Corregir QA-014 y QA-015 (AC-53) sin ampliar el alcance | Entregado en `9b89aa9`, `911e81d` y `5ae739e`. QA-014: curvas del acceso al 20 % en claro, 4.73:1 medido por píxeles (antes 4.43:1). QA-015: las curvas del perfil se cortan alrededor de cada hito (`levelSegments()`), mínimo 3.81:1 en claro (antes 2.90:1). Nuevo `contrast.spec.ts` y 6 unitarios; la mutación inversa los hace fallar. lint, typecheck, test 162/162, test:rules 34/34, test:e2e 23/23 y build OK | Entrega Develop QA-014/015 | #19 |
 | 19 | 2026-11-23 | 5 | testing | Retest de QA-014 y QA-015 y regresión completa en un clon limpio nuevo; matriz E1/E2 de 68 estados, medición geométrica y por píxeles, 8 mutaciones | **BLOCKED, sin FAIL**. QA-014 PASS (4.73:1 en claro, 6.19:1 en oscuro, barrido de 19 anchos) y QA-015 PASS (mínimo 3.81:1 en claro, 6.33:1 en oscuro, 4/16/40 misiones). AC-52, AC-53, AC-67, AC-68, AC-69 y SEC-01/05/09 PASS; 0 violaciones axe serias. test 162/162, test:rules 34/34, test:e2e 23/23, build OK. Las 8 mutaciones mueren. Confirmó que su medidor de #17 daba un falso 2.93:1 con las curvas partidas. Propone AC-NEW-07: el check de los hitos completados desaparece con muchas misiones (r < 5) y en claro solo queda el color. BLOCKED: Google (proxy, 403) | Informe Testing #19 | #21 |
 | 20 | 2026-11-23 | 5 | develop | Implementar AC-70: hitos completados distinguibles sin color con cualquier número de misiones | Entregado en `1e3d6bd` y `65b86c9`. Check desde r ≥ 4 (antes r ≥ 5) y, por debajo, núcleo `on-marker` dentro del disco `marker` (14.11:1 frente a `surface` en claro; oculto en oscuro, donde el disco ya se lee relleno a 8.52:1). Medido por píxeles en 48 combinaciones: completados ≥ 4.17:1 en claro, activos huecos. Nuevo `milestones.spec.ts` y 6 unitarios; 4 mutaciones detectadas. lint, typecheck, test 168/168, test:rules 34/34, test:e2e 25/25 y build OK | Entrega Develop AC-70 | #21 |
+| 21 | 2026-11-23 | 5 | testing | Retest de AC-70 y revisión final de la Fase 5 en un clon limpio de `d3077af`: matriz de 144 combinaciones (3.936 hitos), barrido subpíxel, 72.981 geometrías de la función pura, 9 mutaciones y regresión completa | **BLOCKED, sin FAIL** en la fase (AC-50 a AC-70, SEC-07 a SEC-10). AC-70 PASS: completados en claro ≥ 3.80:1 en el peor caso subpíxel (Develop había medido 4.17:1), en oscuro 8.52:1, activos ≤ 1.00:1; avala ocultar el núcleo en oscuro (disco relleno frente a anillo). AC-53, AC-55, AC-56 y QA-015 se mantienen. test 168/168, test:rules 34/34, test:e2e 25/25, build OK; 9/9 mutaciones detectadas. Sin defectos nuevos. Propone AC-NEW-08 (más de 60 misiones). BLOCKED: Google (proxy, 403) | Informe Testing #21 | — |
 
 ## Resultado final de la v1 (PR #1)
 
@@ -34,6 +35,13 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 - **Defectos:** se encontraron 10 (QA-001 a QA-010) y todos están corregidos y retestados con PASS. Uno lo detectó el E2E de Develop (QA-006) y nueve Testing.
 - **Pruebas automatizadas en el último retest (#12):** unitarias 78/78, reglas de Firestore en el emulador 34/34 y E2E con Playwright 7/7. También pasan lint, typecheck y build.
 - **Riesgo aceptado:** 4 avisos altos de `npm audit` en `@grpc/grpc-js`, que es transitivo de firebase y no entra en el bundle del cliente. La justificación está en `docs/SECURITY.md`.
+
+## Resultado de la Fase 5 (rediseño v2 «Ruta», PR #3)
+
+- **Veredicto de Testing (#21):** sin FAIL en AC-50 a AC-70 y SEC-07 a SEC-10. Solo queda BLOCKED la parte de Google de AC-59, AC-60 y SEC-07, porque el proxy del contenedor deniega `apis.google.com`. Hay que comprobarlo en producción tras fusionar, como se hizo con la v1 (#14).
+- **Ciclo real:** 7 delegaciones (#15 a #21). Testing encontró 5 defectos: 3 en la paleta antes de escribir código (QA-011 a QA-013) y 2 de contraste en la implementación (QA-014 y QA-015). Todos se corrigieron y pasaron el retest. Además propuso AC-70, que se implementó y verificó.
+- **Pruebas en la última revisión:** unitarias 168/168 (antes 78), reglas 34/34, E2E 25/25 (antes 7), lint, typecheck y build sin `.env.local`. `firestore.rules` no ha cambiado.
+- **Riesgo aceptado:** los mismos 4 avisos altos de `@grpc/grpc-js` (SEC-05).
 
 ## Hallazgos y correcciones
 
@@ -56,6 +64,9 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-015 | baja | AC-53 | El contorno del hito Sendero queda a 2.93:1 donde lo cruza una curva de nivel del perfil de ruta (`RouteProfile.tsx:177-184`, `stroke-contour/20`) | #17 | `911e81d` (curvas cortadas alrededor de los hitos) | PASS (#19) |
 
 ## Avisos y notas
+
+- AC-NEW-08 (propuesto por Testing en #21, no incorporado): con más de 60 misiones, sobre todo del mismo terreno a 360 px, los hitos se solapan (desde unas 64) y los extremos se salen del viewBox contando el trazo (desde 84). Queda como mejora futura; AC-70 y `DESIGN_DIRECTION.md` se acotaron al rango verificado.
+- Observación de #21: el comentario de `dotRadius` en `src/lib/routeProfile.ts` y la fila #20 citan 4.17:1; el peor caso subpíxel medido por Testing es 3.80:1 (sigue por encima de 3:1).
 
 - SEC-05 (riesgo aceptado): justificado en `docs/SECURITY.md` y aceptado por Testing en #10. Quedan 4 altos en `@grpc/grpc-js`, que no está en el bundle de cliente y para el que no hay versión de firebase que lo corrija.
 - AC-36 (antes AC-NEW-05): resuelto. `package.json` declara `engines.node >=24.12` y Vercel compila con Node 26.x (#13 y #14).
