@@ -133,3 +133,94 @@ export function stat(page: Page, label: string) {
 export function filterButton(page: Page, name: "Todas" | "Activas" | "Hechas") {
   return page.getByRole("group", { name: "Filtrar misiones" }).getByRole("button", { name: new RegExp(`^${name}`) });
 }
+
+/* ------------------------------------------------------------------ */
+/* Lectura directa del emulador (pruebas de la Fase 5)                 */
+/* ------------------------------------------------------------------ */
+
+/** UID de una cuenta del emulador (inicia sesión por REST; no toca la UI). */
+export async function uidFor(request: APIRequestContext, email: string, password = PASSWORD): Promise<string> {
+  const res = await request.post(
+    `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`,
+    { data: { email, password, returnSecureToken: true } },
+  );
+  expect(res.ok()).toBeTruthy();
+  return ((await res.json()) as { localId: string }).localId;
+}
+
+/** "Cuenta antigua": creada por REST, sin pasar por la UI (no recibe misiones de ejemplo). */
+export async function createAccountByRest(request: APIRequestContext, email: string, password = PASSWORD): Promise<string> {
+  const res = await request.post(`${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key`, {
+    data: { email, password, returnSecureToken: true },
+  });
+  expect(res.ok()).toBeTruthy();
+  return ((await res.json()) as { localId: string }).localId;
+}
+
+export interface StoredQuest {
+  id: string;
+  fields: Record<string, Record<string, unknown>>;
+  createdAt: string;
+}
+
+/** Marca de tiempo de Firestore comparable como texto (fracción a 9 cifras). */
+function timestampKey(value: string): string {
+  const match = /^(.*?)(?:\.(\d+))?Z$/.exec(value);
+  return match ? `${match[1]}.${(match[2] ?? "").padEnd(9, "0")}` : value;
+}
+
+/** Misiones guardadas de `uid`, leídas por REST como administrador del emulador, por createdAt ascendente. */
+export async function storedQuests(request: APIRequestContext, uid: string): Promise<StoredQuest[]> {
+  const res = await request.get(
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/quests`,
+    { headers: { Authorization: "Bearer owner" } },
+  );
+  expect(res.ok()).toBeTruthy();
+  const body = (await res.json()) as { documents?: { name: string; fields: StoredQuest["fields"] }[] };
+  return (body.documents ?? [])
+    .map((doc) => ({
+      id: doc.name.split("/").pop() ?? "",
+      fields: doc.fields,
+      createdAt: String(doc.fields.createdAt?.timestampValue ?? ""),
+    }))
+    .sort((a, b) => timestampKey(a.createdAt).localeCompare(timestampKey(b.createdAt)));
+}
+
+/** Reglas que dejan leer al dueño pero deniegan toda escritura. */
+export const DENY_WRITES_RULES = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/quests/{questId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}`;
+
+/** Carga unas reglas en el emulador de Firestore. */
+export async function loadRules(request: APIRequestContext, content: string): Promise<void> {
+  const response = await request.put(`${FIRESTORE_EMULATOR}/emulator/v1/projects/${PROJECT_ID}:securityRules`, {
+    data: { rules: { files: [{ name: "firestore.rules", content }] } },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
+/** Sin scroll horizontal y ningún elemento visible sobresale por la derecha. */
+export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => {
+    const width = window.innerWidth;
+    const offenders: string[] = [];
+    for (const element of document.querySelectorAll<Element>("body *")) {
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (getComputedStyle(element).visibility === "hidden") continue;
+      if (rect.right > width + 0.5) {
+        offenders.push(`${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""} right=${Math.round(rect.right)}`);
+      }
+    }
+    return { scrollWidth: document.documentElement.scrollWidth, width, offenders: offenders.slice(0, 5) };
+  });
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.width);
+  expect(overflow.offenders).toEqual([]);
+}
+
