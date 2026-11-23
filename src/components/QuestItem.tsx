@@ -1,32 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DIFFICULTY_LABELS, xpFor, type Quest, type QuestInput } from "@/lib/quests";
+import type { WriteOutcome } from "@/lib/writes";
 import { QuestForm } from "./QuestForm";
+import { DIFFICULTY_STYLES, focusRing, mutedText, Spinner } from "./ui";
 
 interface QuestItemProps {
   quest: Quest;
-  onToggle: (quest: Quest) => Promise<void>;
-  onSave: (quest: Quest, value: QuestInput) => Promise<void>;
+  onToggle: (quest: Quest) => Promise<WriteOutcome>;
+  onSave: (quest: Quest, value: QuestInput) => Promise<WriteOutcome>;
   onRequestDelete: (quest: Quest) => void;
   errorMessage: (error: unknown) => string;
 }
 
-const badgeClass: Record<Quest["difficulty"], string> = {
-  easy: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100",
-  medium: "bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-100",
-  hard: "bg-rose-100 text-rose-900 dark:bg-rose-900/50 dark:text-rose-100",
-};
-
-const smallButton =
-  "rounded-lg border px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-60";
+const smallButton = `inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`;
 
 export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessage }: QuestItemProps) {
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const togglingRef = useRef(false);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+
+  // Al cerrar el editor, el foco vuelve al botón "Editar" de esta misión.
+  useEffect(() => {
+    if (!editing && restoreFocus.current) {
+      restoreFocus.current = false;
+      editButtonRef.current?.focus();
+    }
+  }, [editing]);
+
+  function closeEditor() {
+    restoreFocus.current = true;
+    setEditing(false);
+  }
 
   async function handleToggle() {
+    if (togglingRef.current) return;
+    togglingRef.current = true;
     setToggleError(null);
     setToggling(true);
     try {
@@ -34,50 +47,83 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
     } catch (error) {
       setToggleError(errorMessage(error));
     } finally {
+      togglingRef.current = false;
       setToggling(false);
     }
   }
 
+  const styles = DIFFICULTY_STYLES[quest.difficulty];
+  const xp = xpFor(quest.difficulty);
+
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <li
+      data-quest-id={quest.id}
+      tabIndex={-1}
+      aria-labelledby={`quest-${quest.id}-title`}
+      className={`scroll-mt-4 rounded-2xl border border-l-4 border-slate-200 p-4 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 dark:border-slate-800 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-slate-950 ${styles.accent} ${
+        quest.completed ? "bg-slate-50 dark:bg-slate-900/60" : "bg-white dark:bg-slate-900"
+      }`}
+    >
       {editing ? (
-        <QuestForm
-          initial={{ title: quest.title, description: quest.description, difficulty: quest.difficulty }}
-          submitLabel="Guardar cambios"
-          pendingLabel="Guardando…"
-          errorMessage={errorMessage}
-          onCancel={() => setEditing(false)}
-          onSubmit={async (value) => {
-            await onSave(quest, value);
-            setEditing(false);
-          }}
-        />
+        <>
+          <h3 id={`quest-${quest.id}-title`} className="sr-only">
+            Editando: {quest.title}
+          </h3>
+          <QuestForm
+            initial={{ title: quest.title, description: quest.description, difficulty: quest.difficulty }}
+            submitLabel="Guardar cambios"
+            pendingLabel="Guardando…"
+            errorMessage={errorMessage}
+            focusOnMount
+            onCancel={closeEditor}
+            onSubmit={async (value) => {
+              const outcome = await onSave(quest, value);
+              closeEditor();
+              return outcome;
+            }}
+          />
+        </>
       ) : (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeClass[quest.difficulty]}`}>
-              {DIFFICULTY_LABELS[quest.difficulty]} · {xpFor(quest.difficulty)} XP
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles.badge}`}>
+              {DIFFICULTY_LABELS[quest.difficulty]}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
+                quest.completed
+                  ? "bg-indigo-700 text-white dark:bg-indigo-500 dark:text-slate-950"
+                  : "bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800"
+              }`}
+            >
+              {quest.completed ? `+${xp} XP ganados` : `${xp} XP`}
             </span>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                 quest.completed
-                  ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-900/50 dark:text-indigo-100"
+                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                   : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
               }`}
             >
               {quest.completed ? "Completada" : "Activa"}
             </span>
+            {quest.pendingSync && (
+              <span className="rounded-full border border-dashed border-slate-400 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-500 dark:text-slate-300">
+                Pendiente de sincronizar
+              </span>
+            )}
           </div>
           <div className="min-w-0">
             <h3
-              className={`break-words text-base font-semibold ${
-                quest.completed ? "text-slate-500 line-through dark:text-slate-400" : ""
+              id={`quest-${quest.id}-title`}
+              className={`text-base font-semibold wrap-anywhere ${
+                quest.completed ? "text-slate-600 line-through decoration-2 dark:text-slate-400" : ""
               }`}
             >
               {quest.title}
             </h3>
             {quest.description && (
-              <p className="mt-1 whitespace-pre-line break-words text-sm text-slate-700 dark:text-slate-300">
+              <p className={`mt-1 whitespace-pre-line text-sm wrap-anywhere ${mutedText}`}>
                 {quest.description}
               </p>
             )}
@@ -92,20 +138,23 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
               type="button"
               onClick={handleToggle}
               disabled={toggling}
+              aria-busy={toggling || undefined}
               aria-label={`${quest.completed ? "Reabrir" : "Completar"} misión: ${quest.title}`}
               className={`${smallButton} ${
                 quest.completed
-                  ? "border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
+                  ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
                   : "border-indigo-700 bg-indigo-700 text-white hover:bg-indigo-800"
               }`}
             >
+              {toggling && <Spinner className="h-3.5 w-3.5" />}
               {toggling ? "Guardando…" : quest.completed ? "Reabrir" : "Completar"}
             </button>
             <button
+              ref={editButtonRef}
               type="button"
               onClick={() => setEditing(true)}
               aria-label={`Editar misión: ${quest.title}`}
-              className={`${smallButton} border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800`}
+              className={`${smallButton} border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800`}
             >
               Editar
             </button>
@@ -113,7 +162,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
               type="button"
               onClick={() => onRequestDelete(quest)}
               aria-label={`Eliminar misión: ${quest.title}`}
-              className={`${smallButton} border-red-300 text-red-800 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40`}
+              className={`${smallButton} border-red-300 bg-white text-red-800 hover:bg-red-50 dark:border-red-800 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/40`}
             >
               Eliminar
             </button>

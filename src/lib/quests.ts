@@ -24,6 +24,11 @@ export interface Quest {
   /** null mientras serverTimestamp() está pendiente de confirmar. */
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  /**
+   * Solo cliente (no es un campo de Firestore): true mientras la caché local
+   * tiene escrituras de este documento sin confirmar por el servidor.
+   */
+  pendingSync?: boolean;
 }
 
 export function isDifficulty(value: unknown): value is Difficulty {
@@ -180,3 +185,42 @@ export const FILTER_LABELS: Readonly<Record<QuestFilter, string>> = Object.freez
   active: "Activas",
   completed: "Completadas",
 });
+
+/* ------------------------------------------------------------------ */
+/* Niveles y contadores (presentación)                                 */
+/* ------------------------------------------------------------------ */
+
+export const XP_PER_LEVEL = 100;
+
+export interface LevelProgress {
+  /** Nivel actual, empieza en 1. */
+  level: number;
+  /** XP acumulada dentro del nivel actual. */
+  xpIntoLevel: number;
+  /** XP que faltan para el siguiente nivel. */
+  xpToNext: number;
+  /** Porcentaje entero 0–99 del nivel actual (nunca NaN). */
+  percent: number;
+}
+
+/** Nivel según la XP ganada: cada XP_PER_LEVEL XP se sube un nivel. */
+export function levelFromXp(xp: number, perLevel: number = XP_PER_LEVEL): LevelProgress {
+  const safeXp = Number.isFinite(xp) && xp > 0 ? Math.floor(xp) : 0;
+  const step = Number.isFinite(perLevel) && perLevel > 0 ? Math.floor(perLevel) : XP_PER_LEVEL;
+  const xpIntoLevel = safeXp % step;
+  return {
+    level: Math.floor(safeXp / step) + 1,
+    xpIntoLevel,
+    xpToNext: step - xpIntoLevel,
+    percent: Math.floor((xpIntoLevel / step) * 100),
+  };
+}
+
+export type CharCountTone = "ok" | "near" | "limit";
+
+/** Tono del contador de caracteres: "near" desde el 90 % del máximo, "limit" al alcanzarlo. */
+export function charCountTone(length: number, max: number): CharCountTone {
+  if (length >= max) return "limit";
+  if (length >= Math.ceil(max * 0.9)) return "near";
+  return "ok";
+}

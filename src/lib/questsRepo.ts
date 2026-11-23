@@ -65,11 +65,17 @@ export function subscribeToQuests(
     return () => {};
   }
   const q = query(collection(getDb(), "users", uid, "quests"), orderBy("createdAt", "desc"));
+  // includeMetadataChanges: también avisa cuando el servidor confirma una
+  // escritura local, para quitar el indicador "Pendiente de sincronizar".
   return onSnapshot(
     q,
+    { includeMetadataChanges: true },
     (snapshot) => {
       onData(
-        snapshot.docs.map((snap) => toQuest(snap.id, snap.data({ serverTimestamps: "estimate" }))),
+        snapshot.docs.map((snap) => ({
+          ...toQuest(snap.id, snap.data({ serverTimestamps: "estimate" })),
+          pendingSync: snap.metadata.hasPendingWrites,
+        })),
       );
     },
     onError,

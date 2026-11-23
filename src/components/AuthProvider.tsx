@@ -8,28 +8,31 @@ import {
 } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { translateAuthError } from "@/lib/authErrors";
+import {
+  withoutError,
+  withRedirectError,
+  withUser,
+  type AuthState,
+  type AuthStatus,
+} from "@/lib/authState";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 
-export type AuthStatus = "loading" | "signed-out" | "signed-in" | "config-error" | "error";
+export type { AuthStatus };
 
 interface AuthContextValue {
   status: AuthStatus;
   user: User | null;
   /** Error de inicialización o de retorno de signInWithRedirect. */
   error: string | null;
+  /** Limpia `error` (p. ej. al iniciar una nueva acción de acceso). */
+  clearError: () => void;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-interface AuthState {
-  status: AuthStatus;
-  user: User | null;
-  error: string | null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>(() =>
+  const [state, setState] = useState<AuthState<User>>(() =>
     isFirebaseConfigured()
       ? { status: "loading", user: null, error: null }
       : { status: "config-error", user: null, error: null },
@@ -41,41 +44,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let unsubscribe: () => void = () => {};
+    let active = true;
     try {
       const auth = getFirebaseAuth();
       unsubscribe = onAuthStateChanged(
         auth,
-        (user) => {
-          setState((prev) => ({
-            status: user ? "signed-in" : "signed-out",
-            user,
-            // Conserva un error de redirect pendiente mientras no haya sesión.
-            error: user ? null : prev.error,
-          }));
-        },
+        (user) => setState((prev) => withUser(prev, user)),
         (error) => {
           setState({ status: "error", user: null, error: translateAuthError(error) });
         },
       );
-      // Si se usó signInWithRedirect, recoge el posible error al volver.
+      // Si se usó signInWithRedirect, recoge el posible error al volver. Puede
+      // llegar después de montar AuthScreen: esta la lee del contexto (QA-004).
       getRedirectResult(auth).catch((error: unknown) => {
-        setState((prev) => ({ ...prev, error: translateAuthError(error) }));
+        if (active) setState((prev) => withRedirectError(prev, translateAuthError(error)));
       });
     } catch (error) {
       queueMicrotask(() =>
         setState({ status: "error", user: null, error: translateAuthError(error) }),
       );
     }
-    return () => unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [configured]);
 
+  const clearError = useCallback(() => setState(withoutError), []);
+
   const signOut = useCallback(async () => {
+    // QA-004: ningún error anterior sobrevive al cierre de sesión.
+    setState(withoutError);
     await firebaseSignOut(getFirebaseAuth());
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signOut }),
-    [state, signOut],
+    () => ({ ...state, clearError, signOut }),
+    [state, clearError, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

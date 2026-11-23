@@ -18,32 +18,46 @@ import {
   type CredentialErrors,
 } from "@/lib/authErrors";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { useAuth } from "./AuthProvider";
+import { ErrorBox, focusRing, mutedText, primaryButton, secondaryButton, fieldClass } from "./ui";
 
 type Mode = "signin" | "signup";
 
-const inputClass =
-  "mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm focus:border-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
+const inputClass = fieldClass;
 
-export function AuthScreen({ initialError }: { initialError?: string | null }) {
+/**
+ * Pantalla de acceso. El error de signInWithRedirect vive en el contexto de
+ * AuthProvider y se lee en cada render (QA-004): si llega después de montar
+ * esta pantalla, también se muestra.
+ */
+export function AuthScreen() {
+  const { error: providerError, clearError } = useAuth();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<CredentialErrors>({});
-  const [error, setError] = useState<string | null>(initialError ?? null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const id = useId();
+  const error = localError ?? providerError;
+
+  /** Toda acción nueva empieza sin errores previos (locales o de redirect). */
+  function resetErrors() {
+    setLocalError(null);
+    clearError();
+  }
 
   function switchMode(next: Mode) {
     setMode(next);
     setFieldErrors({});
-    setError(null);
+    resetErrors();
     setInfo(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    resetErrors();
     setInfo(null);
     const errors = validateCredentials(email, password);
     setFieldErrors(errors);
@@ -60,13 +74,13 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
       }
       // onAuthStateChanged se encarga de mostrar el dashboard.
     } catch (err) {
-      setError(translateAuthError(err));
+      setLocalError(translateAuthError(err));
       setPending(false);
     }
   }
 
   async function handleGoogle() {
-    setError(null);
+    resetErrors();
     setInfo(null);
     setPending(true);
     const auth = getFirebaseAuth();
@@ -79,17 +93,17 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
           await signInWithRedirect(auth, provider);
           return;
         } catch (redirectErr) {
-          setError(translateAuthError(redirectErr));
+          setLocalError(translateAuthError(redirectErr));
         }
       } else {
-        setError(translateAuthError(err));
+        setLocalError(translateAuthError(err));
       }
       setPending(false);
     }
   }
 
   async function handleReset() {
-    setError(null);
+    resetErrors();
     setInfo(null);
     if (!isValidEmail(email)) {
       setFieldErrors({ email: "Escribe tu email para recibir el enlace de recuperación." });
@@ -101,7 +115,7 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
       await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
       setInfo("Si existe una cuenta con ese email, recibirás un enlace para restablecer la contraseña.");
     } catch (err) {
-      setError(translateAuthError(err));
+      setLocalError(translateAuthError(err));
     } finally {
       setPending(false);
     }
@@ -114,12 +128,12 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
   return (
     <section
       aria-labelledby={`${id}-title`}
-      className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <h2 id={`${id}-title`} className="text-xl font-semibold">
         {isSignup ? "Crea tu cuenta" : "Inicia sesión"}
       </h2>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+      <p className={`mt-1 text-sm ${mutedText}`}>
         Tus misiones se guardan en tu cuenta y solo tú puedes verlas.
       </p>
 
@@ -131,7 +145,7 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
             aria-pressed={mode === value}
             onClick={() => switchMode(value)}
             disabled={pending}
-            className={`rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-60 ${
+            className={`rounded-md px-3 py-2 text-sm font-medium disabled:opacity-60 ${focusRing} ${
               mode === value
                 ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-950 dark:text-indigo-300"
                 : "text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
@@ -178,7 +192,7 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
             aria-describedby={`${passwordId}-hint${fieldErrors.password ? ` ${passwordId}-error` : ""}`}
             className={inputClass}
           />
-          <p id={`${passwordId}-hint`} className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+          <p id={`${passwordId}-hint`} className={`mt-1 text-xs ${mutedText}`}>
             Mínimo {PASSWORD_MIN_LENGTH} caracteres.
           </p>
           {fieldErrors.password && (
@@ -188,11 +202,7 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
           )}
         </div>
 
-        {error && (
-          <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
-            {error}
-          </p>
-        )}
+        {error && <ErrorBox>{error}</ErrorBox>}
         <p aria-live="polite" className="text-sm text-emerald-700 dark:text-emerald-400">
           {info}
         </p>
@@ -200,7 +210,8 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-indigo-700 px-4 py-2.5 font-semibold text-white hover:bg-indigo-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          aria-busy={pending || undefined}
+          className={`${primaryButton} w-full py-2.5`}
         >
           {pending ? "Procesando…" : isSignup ? "Crear cuenta" : "Iniciar sesión"}
         </button>
@@ -209,14 +220,14 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
             type="button"
             onClick={handleReset}
             disabled={pending}
-            className="text-sm font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-60 dark:text-indigo-300"
+            className={`rounded text-sm font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900 disabled:opacity-60 dark:text-indigo-300 ${focusRing}`}
           >
             ¿Olvidaste tu contraseña?
           </button>
         )}
       </form>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+      <div className="my-5 flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />o
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
       </div>
@@ -225,7 +236,7 @@ export function AuthScreen({ initialError }: { initialError?: string | null }) {
         type="button"
         onClick={handleGoogle}
         disabled={pending}
-        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800"
+        className={`${secondaryButton} w-full py-2.5 font-semibold`}
       >
         Continuar con Google
       </button>

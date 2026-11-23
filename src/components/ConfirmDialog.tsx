@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { secondaryButton, Spinner } from "./ui";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -54,7 +55,7 @@ export function ConfirmDialog({
       <h2 id={`${id}-title`} className="text-lg font-semibold">
         {title}
       </h2>
-      <p id={`${id}-desc`} className="mt-2 break-words text-sm text-slate-700 dark:text-slate-300">
+      <p id={`${id}-desc`} className="mt-2 text-sm wrap-anywhere text-slate-700 dark:text-slate-300">
         {message}
       </p>
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -63,7 +64,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="rounded-lg border border-slate-300 px-4 py-2 font-medium hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-60 dark:border-slate-600 dark:hover:bg-slate-800"
+          className={secondaryButton}
         >
           Cancelar
         </button>
@@ -71,8 +72,10 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:opacity-60"
+          aria-busy={pending || undefined}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:opacity-60 dark:focus-visible:ring-red-400 dark:focus-visible:ring-offset-slate-900"
         >
+          {pending && <Spinner className="h-4 w-4" />}
           {pending ? "Eliminando…" : confirmLabel}
         </button>
       </div>
