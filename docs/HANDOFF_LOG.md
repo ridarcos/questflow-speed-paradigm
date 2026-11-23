@@ -18,8 +18,18 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 10 | 2026-11-23 | 4 | testing | Revisión final de la Fase 4 y retest de QA-006 a QA-008, en un clon limpio | **BLOCKED, sin FAIL** en los criterios vigentes. QA-006, QA-007 (contraste 6.44:1; mínimo global 5.22:1) y QA-008, también con red lenta: PASS. AC-04, AC-30 a AC-33 y SEC-01/04/05: PASS. Regresión: test 67/67, test:rules 34/34, test:e2e 6/6. Propuso AC-NEW-06 con QA-009 y QA-010. Producción (AC-34, Google, AC-36) BLOCKED desde el contenedor | Informe Testing #10 | #12 |
 | 11 | 2026-11-23 | 4 | develop | Corregir QA-009 y QA-010 (AC-28), texto de permission-denied y README | Entregado en el commit `8692f34`. test 78/78, test:rules 34/34, test:e2e 7/7 (nuevo test de QA-009), lint, typecheck y build OK | Entrega Develop QA-009/010 | #12 |
 | 12 | 2026-11-23 | 4 | testing | Retest final de QA-009 y QA-010 y regresión completa, en un clon limpio, con pruebas propias y una prueba de mutación | **Sin FAIL**: PASS en todos los criterios AC/SEC comprobables desde el contenedor. La prueba de mutación confirma que el E2E de QA-009 detecta el fallo. test 78/78, test:rules 34/34, test:e2e 7/7 y build sin `.env.local` OK. Solo producción queda BLOCKED (AC-34, Google, AC-36) | Informe Testing #12 | — |
-| 13 | 2026-11-23 | prod | orquestador | Comprobar el acceso público a producción desde el navegador integrado del usuario, que no tiene sesión de Vercel | https://questflow-speed-paradigm-sandy.vercel.app carga la pantalla de acceso de QuestFlow sin pedir login de Vercel. Vercel muestra `ssoProtection: disabled` y Node 26.x (cumple ≥24.12). Falta la prueba con Firebase real (registro, CRUD y Google), que hará Ricardo con la cuenta de prueba | Lectura de la página + `get_project` de Vercel | Pendiente: confirmación de Ricardo |
-| 14 | 2026-11-23 | 5 | testing | Analizar el alcance del rediseño v2 (petición de Ricardo: UI/UX completa, misiones precreadas y tutorial), proponer criterios observables y medir la paleta de `docs/DESIGN_DIRECTION.md` antes de implementar | Propuso AC-50 a AC-69 y SEC-07 a SEC-10, con método de verificación por criterio. Midió los contrastes: 3 defectos en la dirección de diseño, QA-011 a QA-013 (amarillo con texto claro en oscuro 1.56:1, texto de Sendero 3.93:1 y Ladera 4.12:1 en claro, foco/hitos en amarillo 1.67:1). Sin cambios en el repo | Informe Testing #14 | El Orquestador corrigió la paleta en `DESIGN_DIRECTION.md`; se verificará en la revisión de la Fase 5 |
+| 13 | 2026-11-23 | prod | orquestador | Comprobar el acceso público a producción desde el navegador integrado del usuario, que no tiene sesión de Vercel | https://questflow-speed-paradigm-sandy.vercel.app carga la pantalla de acceso de QuestFlow sin pedir login de Vercel. Vercel muestra `ssoProtection: disabled` y Node 26.x (cumple ≥24.12). Falta la prueba con Firebase real (registro, CRUD y Google), que hará Ricardo con la cuenta de prueba | Lectura de la página + `get_project` de Vercel | #14 |
+| 14 | 2026-11-23 | prod | orquestador + Ricardo | Verificación final en producción tras fusionar el PR #1 en `main` | Vercel sirve en producción el commit de `main` `eb02ab3` en https://questflow-speed-paradigm-sandy.vercel.app (alias de producción, `ssoProtection` desactivada). El Orquestador pidió una prueba en incógnito con una cuenta de prueba: registro, crear una misión, recargar y Google. Ricardo confirmó el 2026-11-23 a las 17:02 UTC que «todo funciona» en producción. Esta comprobación la hizo una persona; los agentes no pudieron observarla desde el contenedor | `get_deployment` de Vercel (ref `main`, sha `eb02ab3`) + confirmación escrita de Ricardo | Cierra AC-34, AC-10 (Google), AC-16 y AC-36 |
+| 15 | 2026-11-23 | 5 | testing | Analizar el alcance del rediseño v2 (petición de Ricardo: UI/UX completa, misiones precreadas y tutorial), proponer criterios observables y medir la paleta de `docs/DESIGN_DIRECTION.md` antes de implementar | Propuso AC-50 a AC-69 y SEC-07 a SEC-10, con método de verificación por criterio. Midió los contrastes: 3 defectos en la dirección de diseño, QA-011 a QA-013 (amarillo con texto claro en oscuro 1.56:1, texto de Sendero 3.93:1 y Ladera 4.12:1 en claro, foco/hitos en amarillo 1.67:1). Sin cambios en el repo | Informe Testing #15 | El Orquestador corrigió la paleta en `DESIGN_DIRECTION.md` (`6ea9878`); se verifica en #17 |
+| 16 | 2026-11-23 | 5 | develop | Implementar el rediseño v2 (AC-50 a AC-69, SEC-07 a SEC-10): sistema visual, perfil de ruta, acceso, terreno, misiones de ejemplo, tutorial y pruebas | Entregado en `bae5d8a`, `6998eb9` y `27f3bcc`. lint y typecheck OK, test 156/156, test:rules 34/34, test:e2e 21/21 (14 nuevos), build sin `.env.local` OK y `npm audit` sin altos nuevos. `firestore.rules` sin cambios. BLOCKED: Google por popup/redirect (el contenedor no alcanza `apis.google.com`). `unshare -n npm run build` literal falla porque el namespace arranca con `lo` apagado (Turbopack usa 127.0.0.1); con `lo` levantado y sin red exterior pasa. La variante sin conexión de AC-62 solo se probó con un script propio | Entrega Develop Fase 5 | #17 |
+
+## Resultado final de la v1 (PR #1)
+
+- **Producción:** https://questflow-speed-paradigm-sandy.vercel.app, desplegada desde `main` (`eb02ab3`), pública y sin Deployment Protection.
+- **Testing:** veredicto sin FAIL en todos los criterios AC/SEC. Los criterios que solo se podían comprobar en producción (AC-34, AC-10 con Google, AC-16 y AC-36) pasaron de BLOCKED a verificados con la confirmación manual de Ricardo (#14).
+- **Defectos:** se encontraron 10 (QA-001 a QA-010) y todos están corregidos y retestados con PASS. Uno lo detectó el E2E de Develop (QA-006) y nueve Testing.
+- **Pruebas automatizadas en el último retest (#12):** unitarias 78/78, reglas de Firestore en el emulador 34/34 y E2E con Playwright 7/7. También pasan lint, typecheck y build.
+- **Riesgo aceptado:** 4 avisos altos de `npm audit` en `@grpc/grpc-js`, que es transitivo de firebase y no entra en el bundle del cliente. La justificación está en `docs/SECURITY.md`.
 
 ## Hallazgos y correcciones
 
@@ -35,22 +45,21 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | `29551b7` | PASS (#10) |
 | QA-009 | baja | AC-28 | El texto que se escribe mientras "Creando…" sigue en curso se borra al terminar el envío (`QuestForm.tsx`, `resetOnSuccess`) | #10 | `8692f34` | PASS (#12) |
 | QA-010 | baja | AC-28 | "Restaurar en el formulario" sustituye sin avisar el borrador que haya en curso (`Dashboard.tsx`, `restoreCreation`) | #10 | `8692f34` | PASS (#12) |
-| QA-011 | media | AC-53, AC-25 | La dirección de diseño pone texto `ink` sobre `marker`; en oscuro da 1.56:1 | #14 | Token `on-marker` #1B2A26 en ambos temas (`DESIGN_DIRECTION.md`) | Pendiente (Fase 5) |
-| QA-012 | media | AC-53 | `trail` (3.93:1) y `slope` (4.12:1) no sirven como texto sobre `paper` claro | #14 | Texto de terreno en `ink`; los colores de terreno solo en iconos y bordes | Pendiente (Fase 5) |
-| QA-013 | media | AC-53, AC-25 | Foco e hitos completados en `marker` sobre `paper` claro dan 1.67:1 (< 3:1) | #14 | Foco con contorno `contour` de 2 px; hitos con contorno `contour` y check | Pendiente (Fase 5) |
+| QA-011 | media | AC-53, AC-25 | La dirección de diseño pone texto `ink` sobre `marker`; en oscuro da 1.56:1 | #15 | Token `on-marker` #1B2A26 en ambos temas (`6ea9878`) | Pendiente (#17) |
+| QA-012 | media | AC-53 | `trail` (3.93:1) y `slope` (4.12:1) no sirven como texto sobre `paper` claro | #15 | Texto de terreno en `ink`; los colores de terreno solo en iconos y bordes (`6ea9878`) | Pendiente (#17) |
+| QA-013 | media | AC-53, AC-25 | Foco e hitos completados en `marker` sobre `paper` claro dan 1.67:1 (< 3:1) | #15 | Foco con contorno `contour` de 2 px; hitos con contorno `contour` y check (`6ea9878`) | Pendiente (#17) |
 
-## Avisos abiertos
+## Avisos y notas
 
-- SEC-05: justificado en `docs/SECURITY.md` y aceptado por Testing en #10. Quedan 4 altos en `@grpc/grpc-js`, que no está en el bundle de cliente y para el que no hay versión de firebase que lo corrija.
-- AC-36 (antes AC-NEW-05): firebase 13 pide Node ≥24.12, así que hay que declarar `engines` y usar Node 24 en Vercel.
-
+- SEC-05 (riesgo aceptado): justificado en `docs/SECURITY.md` y aceptado por Testing en #10. Quedan 4 altos en `@grpc/grpc-js`, que no está en el bundle de cliente y para el que no hay versión de firebase que lo corrija.
+- AC-36 (antes AC-NEW-05): resuelto. `package.json` declara `engines.node >=24.12` y Vercel compila con Node 26.x (#13 y #14).
 - AC-26 (observación de #5): resuelto en la Fase 3 con una espera máxima de 1,5 s y el estado "pendiente de sincronizar". Testing lo verificó en #7 y #10.
 
 - Numeración: Testing propuso QA-006 y QA-007 en #7, pero el Orquestador ya había asignado QA-006 al defecto que encontró Develop en #8. Los dos de Testing quedan registrados como QA-007 y QA-008.
 
 ## Cambios en los criterios
 
-- Tras el informe #14 se añade la Fase 5 (rediseño v2) a `testing.md`: AC-50 a AC-69 y SEC-07 a SEC-10, tal como los propuso Testing.
+- Tras el informe #15 se añade la Fase 5 (rediseño v2) a `testing.md`: AC-50 a AC-69 y SEC-07 a SEC-10, tal como los propuso Testing.
 
 - Tras el informe #10 se añade AC-28 (antes AC-NEW-06): el formulario nunca descarta sin avisar el texto del usuario.
 

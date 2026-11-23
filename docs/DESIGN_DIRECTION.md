@@ -24,7 +24,7 @@ Una misión personal es un tramo de ruta. QuestFlow se presenta como un **mapa d
 | `slope` | `#A8641C` (ocre) | `#E0A15A` | Ladera |
 | `summit` | `#8E3A52` (brezo) | `#E29AB0` | Cumbre |
 
-Tokens añadidos tras el informe Testing #14 (QA-011 a QA-013), con ratios medidos:
+Tokens añadidos tras el informe Testing #15 (QA-011 a QA-013), con ratios medidos:
 
 | Token | Claro | Oscuro | Uso |
 | --- | --- | --- | --- |

@@ -80,7 +80,7 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 
 ### Fase 5 — Rediseño v2 («Ruta»)
 
-Referencia: `docs/DESIGN_DIRECTION.md`. Línea base de no regresión: commit `eb02ab3` (test 78/78, test:rules 34/34, test:e2e 7/7 en el informe #12). Criterios propuestos por Testing en el informe #14.
+Referencia: `docs/DESIGN_DIRECTION.md`. Línea base de no regresión: commit `eb02ab3` (test 78/78, test:rules 34/34, test:e2e 7/7 en el informe #12). Criterios propuestos por Testing en el informe #15.
 
 **Método común.** Salvo que se indique otra cosa, las pruebas de navegador son scripts propios de Testing con Playwright, en un directorio temporal fuera del repo, contra `next build && next start` y los emuladores (Auth 9099, Firestore 8080, `demo-questflow`). Chromium, con `colorScheme` `light` y `dark`, a 360×740, 768×1024 y 1280×800. Los recuentos se hacen por REST contra el emulador con `Authorization: Bearer owner`. Una "cuenta antigua" es una cuenta creada por REST (`accounts:signUp`) sin pasar por la UI.
 
