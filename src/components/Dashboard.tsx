@@ -10,6 +10,7 @@ import {
   QUEST_FILTERS,
   type Quest,
   type QuestFilter,
+  type QuestInput,
 } from "@/lib/quests";
 import {
   createQuest,
@@ -19,6 +20,7 @@ import {
   translateFirestoreError,
   updateQuest,
 } from "@/lib/questsRepo";
+import { addNotice, lateErrorNotice, removeNotice, type LateWrite, type SyncNotice } from "@/lib/syncNotices";
 import { runWrite } from "@/lib/writes";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { QuestForm } from "./QuestForm";
@@ -81,7 +83,10 @@ export function Dashboard({ uid }: { uid: string }) {
   const [toDelete, setToDelete] = useState<Quest | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncNotices, setSyncNotices] = useState<SyncNotice[]>([]);
+  const noticeIdRef = useRef(0);
+  // Remontar el formulario de creación (key) permite devolverle una misión rechazada.
+  const [createForm, setCreateForm] = useState<{ key: number; initial?: QuestInput }>({ key: 0 });
   const [focusTick, setFocusTick] = useState(0);
   const focusRequest = useRef<FocusRequest>(null);
   const listHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -119,10 +124,25 @@ export function Dashboard({ uid }: { uid: string }) {
   }, [focusTick, visible]);
   const loading = list.status === "loading";
 
-  /** Error de una escritura rechazada por el servidor después de liberar la UI. */
-  const reportLateError = useCallback((error: unknown) => {
-    setSyncError(`Un cambio no se pudo sincronizar y se ha revertido. ${translateFirestoreError(error)}`);
-  }, []);
+  /**
+   * Devuelve el manejador de un rechazo que llega después de liberar la UI:
+   * añade un aviso (sin sobrescribir los anteriores) que nombra la misión.
+   */
+  const lateErrorHandler = useCallback(
+    (write: LateWrite, onRejected?: () => void) => (error: unknown) => {
+      onRejected?.();
+      noticeIdRef.current += 1;
+      const notice = lateErrorNotice(noticeIdRef.current, write, translateFirestoreError(error));
+      setSyncNotices((list) => addNotice(list, notice));
+    },
+    [],
+  );
+
+  function restoreCreation(notice: SyncNotice) {
+    if (!notice.restore) return;
+    setCreateForm((current) => ({ key: current.key + 1, initial: notice.restore }));
+    setSyncNotices((list) => removeNotice(list, notice.id));
+  }
 
   function retry() {
     setList({ status: "loading" });
@@ -139,7 +159,7 @@ export function Dashboard({ uid }: { uid: string }) {
     setDeleting(true);
     setActionError(null);
     try {
-      await runWrite(deleteQuest(quest.id), reportLateError);
+      await runWrite(deleteQuest(quest.id), lateErrorHandler({ kind: "delete", title: quest.title }));
       focusRequest.current = { questId: nextId, waitUpdates: 0 };
       setFocusTick((n) => n + 1);
     } catch (error) {
@@ -231,13 +251,18 @@ export function Dashboard({ uid }: { uid: string }) {
           Nueva misión
         </h2>
         <QuestForm
+          key={createForm.key}
+          initial={createForm.initial}
+          focusOnMount={createForm.key > 0}
           submitLabel="Crear misión"
           pendingLabel="Creando…"
           resetOnSuccess
           successMessage="Misión creada."
           titleRef={createTitleRef}
           errorMessage={translateFirestoreError}
-          onSubmit={(value) => runWrite(createQuest(value), reportLateError)}
+          onSubmit={(value, { retract }) =>
+            runWrite(createQuest(value), lateErrorHandler({ kind: "create", value }, retract))
+          }
         />
       </section>
 
@@ -282,17 +307,38 @@ export function Dashboard({ uid }: { uid: string }) {
           </div>
         </div>
 
-        {syncError && (
-          <ErrorBox
-            title="Error de sincronización"
-            action={
-              <button type="button" onClick={() => setSyncError(null)} className={`${secondaryButton} px-3 py-1.5 text-sm`}>
-                Cerrar aviso
-              </button>
-            }
-          >
-            {syncError}
-          </ErrorBox>
+        {syncNotices.length > 0 && (
+          <ul aria-label="Cambios no sincronizados" className="flex flex-col gap-2">
+            {syncNotices.map((notice) => (
+              <li key={notice.id}>
+                <ErrorBox
+                  title="Cambio no sincronizado"
+                  action={
+                    <div className="flex flex-wrap gap-2">
+                      {notice.restore && (
+                        <button
+                          type="button"
+                          onClick={() => restoreCreation(notice)}
+                          className={`${secondaryButton} px-3 py-1.5 text-sm`}
+                        >
+                          Restaurar en el formulario
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSyncNotices((list) => removeNotice(list, notice.id))}
+                        className={`${secondaryButton} px-3 py-1.5 text-sm`}
+                      >
+                        Cerrar aviso
+                      </button>
+                    </div>
+                  }
+                >
+                  {notice.message}
+                </ErrorBox>
+              </li>
+            ))}
+          </ul>
         )}
         {actionError && (
           <ErrorBox
@@ -350,8 +396,18 @@ export function Dashboard({ uid }: { uid: string }) {
                 key={quest.id}
                 quest={quest}
                 errorMessage={translateFirestoreError}
-                onToggle={(q) => runWrite(setQuestCompleted(q.id, !q.completed), reportLateError)}
-                onSave={(q, value) => runWrite(updateQuest(q.id, value), reportLateError)}
+                onToggle={(q) =>
+                  runWrite(
+                    setQuestCompleted(q.id, !q.completed),
+                    lateErrorHandler({ kind: "toggle", title: q.title, completed: !q.completed }),
+                  )
+                }
+                onSave={(q, value) =>
+                  runWrite(
+                    updateQuest(q.id, value),
+                    lateErrorHandler({ kind: "update", title: q.title, newTitle: value.title }),
+                  )
+                }
                 onRequestDelete={(q) => {
                   setActionError(null);
                   setToDelete(q);

@@ -14,6 +14,7 @@ import {
   type QuestInput,
   type QuestValidationErrors,
 } from "@/lib/quests";
+import { queuedSuccessMessage } from "@/lib/syncNotices";
 import type { WriteOutcome } from "@/lib/writes";
 import { DIFFICULTY_STYLES, ErrorBox, fieldClass, mutedText, primaryButton, secondaryButton, Spinner } from "./ui";
 
@@ -24,8 +25,10 @@ interface QuestFormProps {
   /**
    * Debe lanzar si la escritura falla (el formulario muestra el error).
    * "queued" indica que quedó guardada en local pendiente de sincronizar.
+   * `retract` retira el aviso de éxito de este envío (p. ej. si el servidor
+   * rechaza la escritura más tarde); no hace nada si ya hay otro aviso.
    */
-  onSubmit: (value: QuestInput) => Promise<WriteOutcome | void>;
+  onSubmit: (value: QuestInput, submission: { retract: () => void }) => Promise<WriteOutcome | void>;
   onCancel?: () => void;
   /** Vacía los campos tras un envío correcto (modo creación). */
   resetOnSuccess?: boolean;
@@ -69,9 +72,10 @@ export function QuestForm({
   const [difficulty, setDifficulty] = useState<Difficulty>(initial?.difficulty ?? "easy");
   const [errors, setErrors] = useState<QuestValidationErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<{ text: string; submission: number } | null>(null);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
+  const submissionRef = useRef(0);
   const localTitleRef = useRef<HTMLInputElement>(null);
   const inputRef = titleRef ?? localTitleRef;
   const id = useId();
@@ -95,19 +99,26 @@ export function QuestForm({
     setErrors({});
     pendingRef.current = true;
     setPending(true);
+    submissionRef.current += 1;
+    const submission = submissionRef.current;
+    let retracted = false;
+    const retract = () => {
+      retracted = true;
+      setInfo((current) => (current?.submission === submission ? null : current));
+    };
     try {
-      const outcome = await onSubmit(result.value);
+      const outcome = await onSubmit(result.value, { retract });
       if (resetOnSuccess) {
         setTitle("");
         setDescription("");
         setDifficulty("easy");
       }
-      if (successMessage) {
-        setInfo(
-          outcome === "queued"
-            ? `${successMessage} Se guardó en este dispositivo y se sincronizará al recuperar la conexión.`
-            : successMessage,
-        );
+      if (successMessage && !retracted) {
+        const online = typeof navigator === "undefined" || navigator.onLine;
+        setInfo({
+          text: outcome === "queued" ? queuedSuccessMessage(successMessage, online) : successMessage,
+          submission,
+        });
       }
     } catch (error) {
       setSubmitError(errorMessage(error));
@@ -214,7 +225,7 @@ export function QuestForm({
 
       {submitError && <ErrorBox title="No se pudo guardar">{submitError}</ErrorBox>}
       <p aria-live="polite" className="text-sm text-emerald-800 dark:text-emerald-300">
-        {info}
+        {info?.text}
       </p>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

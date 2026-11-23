@@ -92,7 +92,7 @@ export function QuestItem({ quest, onToggle, onSave, onRequestDelete, errorMessa
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
                 quest.completed
-                  ? "bg-indigo-700 text-white dark:bg-indigo-500 dark:text-slate-950"
+                  ? "bg-indigo-700 text-white dark:bg-indigo-400 dark:text-slate-950"
                   : "bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:ring-indigo-800"
               }`}
             >
