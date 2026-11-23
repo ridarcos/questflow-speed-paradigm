@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Deny-by-default: solo existe esta ruta. Todo lo demás queda denegado.
     match /users/{userId}/quests/{questId} {
       function owner() {
         return request.auth != null && request.auth.uid == userId;
@@ -9,15 +10,22 @@ service cloud.firestore {
         return data.keys().hasAll(['title', 'description', 'difficulty', 'completed', 'createdAt', 'updatedAt'])
           && data.keys().hasOnly(['title', 'description', 'difficulty', 'completed', 'createdAt', 'updatedAt'])
           && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
+          // QA-003: al menos un carácter no blanco.
+          && data.title.matches('(?s).*\\S.*')
           && data.description is string && data.description.size() <= 280
           && data.difficulty in ['easy', 'medium', 'hard']
           && data.completed is bool
           && data.createdAt is timestamp && data.updatedAt is timestamp;
       }
       allow get, list: if owner();
-      allow create: if owner() && validQuest(request.resource.data);
+      // QA-001: timestamps fijados por el servidor (serverTimestamp()).
+      allow create: if owner() && validQuest(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      // QA-002: updatedAt fijado por el servidor; createdAt inmutable.
       allow update: if owner() && validQuest(request.resource.data)
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
       allow delete: if owner();
     }
   }
