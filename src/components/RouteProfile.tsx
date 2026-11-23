@@ -173,12 +173,16 @@ export function RouteProfile({ quests, stats, loading }: RouteProfileProps) {
                   <path d={geometry.area} />
                 </clipPath>
               </defs>
-              {/* Relieve decorativo: superficie y curvas de nivel suaves bajo la cresta. */}
+              {/*
+                Relieve decorativo: superficie y curvas de nivel suaves bajo la cresta.
+                Las curvas se cortan alrededor de cada hito (QA-015): su contorno
+                solo linda con el relieve o con surface, nunca con una curva.
+              */}
               <g data-layer="relief">
                 <path d={geometry.area} className="fill-contour/7" />
                 <g clipPath="url(#route-relief-clip)">
-                  {geometry.levels.map((y) => (
-                    <line key={y} x1={0} x2={geometry.width} y1={y} y2={y} className="stroke-contour/20" strokeWidth={1} />
+                  {geometry.levelSegments.map(({ y, x1, x2 }) => (
+                    <line key={`${y}-${x1}`} x1={x1} x2={x2} y1={y} y2={y} className="stroke-contour/20" strokeWidth={1} />
                   ))}
                 </g>
               </g>

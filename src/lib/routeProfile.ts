@@ -43,6 +43,15 @@ export interface RouteProfileGeometry {
   milestones: Milestone[];
   /** Alturas (y) de las curvas de nivel decorativas. */
   levels: number[];
+  /** Tramos que se dibujan de esas curvas: cortados alrededor de cada hito (QA-015). */
+  levelSegments: LevelSegment[];
+}
+
+/** Tramo horizontal de una curva de nivel, de x1 a x2 (x1 < x2). */
+export interface LevelSegment {
+  y: number;
+  x1: number;
+  x2: number;
 }
 
 export interface ProfileSize {
@@ -61,6 +70,18 @@ const TERRAIN_HEIGHT: Readonly<Record<Difficulty, number>> = Object.freeze({
 
 const MIN_RADIUS = 2.5;
 const MAX_RADIUS = 7;
+
+/**
+ * Holgura de las curvas de nivel alrededor de cada hito, sumada a su radio
+ * (QA-015). Cubre medio contorno del hito (hasta 1 px), medio trazo de la
+ * curva (0,5 px) y deja 3 px de relieve limpio, también con el antialias. Así
+ * el contorno solo linda con el relieve o con surface (en claro, Sendero 3.81:1
+ * y 4.20:1) y nunca con una curva de nivel, donde Sendero bajaba a 2.91:1.
+ */
+export const LEVEL_CLEARANCE = 4.5;
+
+/** Un tramo más corto que esto no se dibuja: sería una mota entre dos hitos. */
+const MIN_LEVEL_SEGMENT = 2;
 
 interface Point {
   x: number;
@@ -148,6 +169,42 @@ function cubicSegments(points: readonly Point[]): string[] {
   return segments;
 }
 
+/**
+ * Tramos de la curva de nivel horizontal `y` (de 0 a `width`) que quedan a
+ * `r + LEVEL_CLEARANCE` o más del centro de cada hito, como las curvas que un
+ * mapa interrumpe alrededor de sus símbolos. Los extremos se redondean hacia
+ * dentro del tramo, así que el redondeo nunca acerca la curva a un hito.
+ */
+export function levelSegments(
+  y: number,
+  width: number,
+  milestones: readonly Pick<Milestone, "x" | "y" | "r">[],
+): LevelSegment[] {
+  const gaps = milestones
+    .flatMap((m) => {
+      const reach = m.r + LEVEL_CLEARANCE;
+      const dy = Math.abs(y - m.y);
+      if (!(dy < reach)) return [];
+      const half = Math.sqrt(reach * reach - dy * dy);
+      return [{ from: m.x - half, to: m.x + half }];
+    })
+    .sort((a, b) => a.from - b.from);
+
+  const segments: LevelSegment[] = [];
+  const push = (from: number, to: number) => {
+    const x1 = Math.ceil(from * 100) / 100;
+    const x2 = Math.floor(to * 100) / 100;
+    if (x2 - x1 >= MIN_LEVEL_SEGMENT) segments.push({ y, x1, x2 });
+  };
+  let cursor = 0;
+  for (const gap of gaps) {
+    if (gap.from > cursor) push(cursor, gap.from);
+    cursor = Math.max(cursor, gap.to);
+  }
+  if (cursor < width) push(cursor, width);
+  return segments;
+}
+
 export function computeRouteProfile(
   quests: readonly ProfileQuest[],
   size: ProfileSize = DEFAULT_PROFILE_SIZE,
@@ -214,6 +271,7 @@ export function computeRouteProfile(
   const walkedEnd = lastCompleted >= 0 ? { x: milestones[lastCompleted].x, y: milestones[lastCompleted].y } : null;
   const walked =
     lastCompleted >= 0 ? `${start} ${segments.slice(0, milestonePointIndex[lastCompleted]).join(" ")}` : null;
+  const levels = [0.3, 0.55, 0.8].map(yAt);
 
   return {
     width,
@@ -223,7 +281,8 @@ export function computeRouteProfile(
     walked,
     walkedEnd,
     milestones,
-    levels: [0.3, 0.55, 0.8].map(yAt),
+    levels,
+    levelSegments: levels.flatMap((level) => levelSegments(level, width, milestones)),
   };
 }
 

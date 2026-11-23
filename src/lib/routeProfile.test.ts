@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { DIFFICULTIES, type Difficulty } from "./quests";
-import { computeRouteProfile, orderForProfile, routeProfileLabel, type ProfileQuest } from "./routeProfile";
+import {
+  computeRouteProfile,
+  LEVEL_CLEARANCE,
+  levelSegments,
+  orderForProfile,
+  routeProfileLabel,
+  type LevelSegment,
+  type ProfileQuest,
+} from "./routeProfile";
 
 const at = (ms: number) => ({ toMillis: () => ms });
 
@@ -19,6 +27,7 @@ function expectFinite(geometry: ReturnType<typeof computeRouteProfile>) {
     ...numbersIn(geometry.area),
     ...numbersIn(geometry.walked ?? ""),
     ...geometry.levels,
+    ...geometry.levelSegments.flatMap((s) => [s.y, s.x1, s.x2]),
     ...geometry.milestones.flatMap((m) => [m.x, m.y, m.r]),
   ];
   expect(all.length).toBeGreaterThan(0);
@@ -49,6 +58,31 @@ function endOf(d: string): { x: number; y: number } {
   return { x: values[values.length - 2], y: values[values.length - 1] };
 }
 
+/** Distancia de un punto al tramo horizontal de una curva de nivel. */
+function distanceToSegment(point: { x: number; y: number }, segment: LevelSegment): number {
+  const dx = Math.max(segment.x1 - point.x, 0, point.x - segment.x2);
+  return Math.hypot(dx, segment.y - point.y);
+}
+
+/** QA-015: ningún tramo de curva de nivel pasa a menos de r + LEVEL_CLEARANCE de un hito. */
+function expectLevelsClearOfMilestones(geometry: ReturnType<typeof computeRouteProfile>) {
+  for (const segment of geometry.levelSegments) {
+    expect(geometry.levels).toContain(segment.y);
+    expect(segment.x1).toBeGreaterThanOrEqual(0);
+    expect(segment.x2).toBeLessThanOrEqual(geometry.width);
+    expect(segment.x2).toBeGreaterThan(segment.x1);
+    for (const m of geometry.milestones) {
+      expect(distanceToSegment(m, segment)).toBeGreaterThanOrEqual(m.r + LEVEL_CLEARANCE - 1e-9);
+    }
+  }
+}
+
+/** Longitud de curva que se ha cortado alrededor de los hitos. */
+function cutLength(geometry: ReturnType<typeof computeRouteProfile>): number {
+  const drawn = geometry.levelSegments.reduce((sum, s) => sum + (s.x2 - s.x1), 0);
+  return geometry.levels.length * geometry.width - drawn;
+}
+
 describe("orderForProfile", () => {
   it("ordena por createdAt ascendente y deja las pendientes (null) al final", () => {
     const list = [quest("q3", { createdAt: null }), quest("q30"), quest("q10"), quest("q20")];
@@ -77,6 +111,7 @@ describe("computeRouteProfile", () => {
     expect(geometry.milestones).toEqual([]);
     expect(geometry.walked).toBeNull();
     expect(geometry.walkedEnd).toBeNull();
+    expect(geometry.levelSegments).toEqual(geometry.levels.map((y) => ({ y, x1: 0, x2: geometry.width })));
     expect(geometry.ridge.startsWith("M0 ")).toBe(true);
     expectFinite(geometry);
     expectInsideViewBox(geometry);
@@ -154,6 +189,77 @@ describe("computeRouteProfile", () => {
     const geometry = computeRouteProfile([quest("q1")], { width: Number.NaN, height: Number.POSITIVE_INFINITY });
     expectFinite(geometry);
     expectInsideViewBox(geometry);
+  });
+});
+
+describe("curvas de nivel cortadas alrededor de los hitos (QA-015)", () => {
+  const milestone = { x: 100, y: 40, r: 7 };
+  const reach = milestone.r + LEVEL_CLEARANCE;
+
+  it("deja 3 px limpios fuera del contorno más grueso (2 px) y del trazo de la curva (1 px)", () => {
+    expect(LEVEL_CLEARANCE - 2 / 2 - 1 / 2).toBeGreaterThanOrEqual(3);
+  });
+
+  it("sin hitos cerca, cada curva es un solo tramo de borde a borde", () => {
+    expect(levelSegments(40, 300, [])).toEqual([{ y: 40, x1: 0, x2: 300 }]);
+    expect(levelSegments(40 + reach, 300, [milestone])).toEqual([{ y: 40 + reach, x1: 0, x2: 300 }]);
+  });
+
+  it("una curva que pasa por el centro de un hito se corta a r + LEVEL_CLEARANCE a cada lado", () => {
+    expect(levelSegments(40, 300, [milestone])).toEqual([
+      { y: 40, x1: 0, x2: 100 - reach },
+      { y: 40, x1: 100 + reach, x2: 300 },
+    ]);
+  });
+
+  it("una curva que solo roza el hito también se corta, sin acercarse por el redondeo", () => {
+    for (const dy of [-reach + 0.3, -3, 2.5, reach - 1, reach - 0.01]) {
+      const segments = levelSegments(40 + dy, 300, [milestone]);
+      expect(segments).toHaveLength(2);
+      for (const segment of segments) {
+        const distance = distanceToSegment(milestone, segment);
+        expect(distance).toBeGreaterThanOrEqual(reach);
+        expect(distance).toBeLessThan(reach + 0.05);
+      }
+    }
+  });
+
+  it("une los huecos que se solapan y no deja motas entre hitos muy juntos", () => {
+    const close = [milestone, { x: 120, y: 40, r: 7 }];
+    expect(levelSegments(40, 300, close)).toEqual([
+      { y: 40, x1: 0, x2: 100 - reach },
+      { y: 40, x1: 120 + reach, x2: 300 },
+    ]);
+    // Entre dos huecos queda 1 px: no se dibuja.
+    const sliver = [milestone, { x: 100 + 2 * reach + 1, y: 40, r: 7 }];
+    expect(levelSegments(40, 300, sliver)).toEqual([
+      { y: 40, x1: 0, x2: 100 - reach },
+      { y: 40, x1: 100 + 3 * reach + 1, x2: 300 },
+    ]);
+  });
+
+  it("en el perfil ningún tramo se acerca a un hito: 0 a 50 misiones, de 296 a 1100 px", () => {
+    const terrains: Difficulty[] = ["easy", "easy", "medium", "hard"];
+    let cut = 0;
+    for (const count of [0, 1, 2, 4, 7, 20, 50]) {
+      const list = Array.from({ length: count }, (_, i) =>
+        quest(`q${i + 1}`, { difficulty: terrains[i % terrains.length], completed: i === 0 }),
+      );
+      for (const size of [
+        { width: 296, height: 112 },
+        { width: 360, height: 112 },
+        { width: 680, height: 128 },
+        { width: 920, height: 160 },
+        { width: 1100, height: 160 },
+      ]) {
+        const geometry = computeRouteProfile(list, size);
+        expectFinite(geometry);
+        expectLevelsClearOfMilestones(geometry);
+        cut += cutLength(geometry);
+      }
+    }
+    // La comprobación no es vacía: en estas rutas hay curvas que cruzaban hitos.
+    expect(cut).toBeGreaterThan(0);
   });
 });
 

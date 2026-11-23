@@ -53,7 +53,7 @@ La dirección visual está en [docs/DESIGN_DIRECTION.md](docs/DESIGN_DIRECTION.m
 - **Tokens:** `paper`, `ink`, `contour`, `marker`, `trail`, `slope`, `summit`, `surface`, `ink-soft`, `line`, `danger` y `on-marker`, con valores para claro y oscuro. Los componentes solo usan utilidades de token (`bg-paper`, `text-ink-soft`, `border-line`...), sin colores por defecto de Tailwind, sin hex en los `.tsx`, sin sombras ni gradientes. El CSS minificado escribe los hex en minúscula.
 - **Escala tipográfica:** 14, 16, 20, 28 y 44 px (`text-small`, `text-body`, `text-title`, `text-heading`, `text-display`). Radios: 20 px contenedores, 14 px tarjetas, 10 px controles y chips redondos.
 - **Perfil de ruta:** SVG en la cabecera del dashboard, con un hito por misión ordenado por `createdAt`, el tramo recorrido hasta la última completada y la XP ganada a la derecha. Lleva `role="img"` y `aria-label` "N de M misiones completadas, X XP". Bajo la cresta hay un relieve decorativo muy tenue.
-- **Curvas de nivel y contraste:** el mapa del acceso usa `contour` al 20 % en claro y al 15 % en oscuro. Desde 1024 px el texto va encima del mapa y conserva 4.78:1 y 6.11:1 sobre una curva (QA-014).
+- **Curvas de nivel y contraste:** el mapa del acceso usa `contour` al 20 % en claro y al 15 % en oscuro. Desde 1024 px el texto va encima del mapa y conserva 4.78:1 y 6.11:1 sobre una curva (QA-014). En el perfil, las curvas del relieve se cortan a `r + 4,5 px` del centro de cada hito, como hacen los mapas alrededor de sus símbolos (`levelSegments` en `src/lib/routeProfile.ts`). Así el contorno del hito solo linda con el relieve o con `surface`, como mínimo a 3.81:1 (Sendero en claro), y nunca con una curva (QA-015).
 - **Una sola animación:** al completar una misión, el tramo avanza y el hito se rellena (menos de 1 s). Con `prefers-reduced-motion: reduce` no se mueve nada.
 - **Disposición:** desde 1024 px, dos columnas con "Nueva misión" fija (`sticky`) a la izquierda. En móvil, perfil → estadísticas → "Nueva misión" plegable → filtros → lista.
 
@@ -144,7 +144,7 @@ Cubre lo siguiente:
 - `tutorial.spec.ts`: apertura automática una vez por UID, foco atrapado, Esc, "Saltar", "Terminar", los 5 pasos, foco devuelto, marca por UID con dos cuentas, almacenamiento que lanza y pasos sin destino a 360 px.
 - `route-profile.spec.ts`: `aria-label` del perfil al completar, reabrir, crear, cambiar terreno y borrar. También el extremo del tramo recorrido, la animación al completar (y ninguna con reduced motion) y títulos con HTML mostrados como texto.
 - `responsive.spec.ts`: a 360, 768 y 1280 px, sin scroll horizontal con las misiones de ejemplo y con el tutorial abierto. En cada paso, el diálogo cabe entero y no tapa del todo su destino.
-- `contrast.spec.ts`: en claro y oscuro, a 1024 y 1280 px, cada texto que queda encima del mapa del acceso conserva 4,5:1 frente a las curvas, y el trazo no pasa de 1,5:1 contra `paper`. Los colores los resuelve el navegador.
+- `contrast.spec.ts`: en claro y oscuro, a 1024 y 1280 px, cada texto que queda encima del mapa del acceso conserva 4,5:1 frente a las curvas, y el trazo no pasa de 1,5:1 contra `paper`. Además, a 360, 768 y 1280 px, ningún tramo de curva de nivel del perfil queda a menos de 2 px del contorno de un hito, y ese contorno conserva 3:1 frente al relieve y a `surface`. Los colores los resuelve el navegador.
 
 Antes de la primera ejecución, instala el navegador con `npx playwright install chromium`. Si tu entorno ya trae un Chromium que no coincide con la versión de Playwright, indica su ruta:
 
