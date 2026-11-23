@@ -15,7 +15,7 @@ Extrae los archivos de este kit dentro de la carpeta `questflow/` (sin borrar lo
 ## 2. Conectar Firebase
 
 - Crear proyecto en Firebase Console con plan Spark.
-- Activar Authentication > Sign-in method > Anonymous.
+- Usar el proyecto existente `questflow-5446d`. Activar Authentication > Sign-in method > Email/Password y Google.
 - Crear Cloud Firestore en modo producción.
 - Registrar una aplicación Web y copiar la configuración a `.env.local` usando las claves de `.env.example`.
 - Publicar las reglas `firestore.rules` desde Firebase Console o con `firebase deploy --only firestore:rules --project TU_PROJECT_ID` (necesita `firebase-tools` e inicio de sesión).
@@ -51,7 +51,7 @@ Las pruebas E2E deben configurarse para el entorno correcto; no marques PASS sin
 - Importar repositorio a Vercel Hobby, configurar variables `NEXT_PUBLIC_FIREBASE_*` para Production y desplegar la rama principal.
 - Configurar Vercel **Settings > Deployment Protection** para que el dominio de producción sea público. Si el alcance es All Deployments, se bloqueará el dominio; elegir None o configuración que no proteja el dominio de producción.
 - Abrir el dominio de producción en incógnito, sin Vercel login. Crear una misión y recargar para comprobar Firestore.
-- Entregar URL pública de producción, URL del repo, credenciales solo si hay login (no necesarias con Auth anónima), y las cuatro respuestas del formulario real.
+- Entregar URL pública de producción, URL del repo, credenciales de una cuenta de prueba si el evaluador las necesita (también puede registrarse o usar Google), y las cuatro respuestas del formulario real.
 
 ## Importante
 
