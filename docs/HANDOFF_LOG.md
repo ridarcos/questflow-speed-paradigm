@@ -15,6 +15,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 7 | 2026-11-23 | 3 | testing | Revisión independiente de la Fase 3 y retest de QA-004 y QA-005. E2E propio: foco, sin conexión, rechazos por reglas, contraste WCAG medido, 360/1280 px | **FAIL**. QA-004 y QA-005 PASS. AC-22, AC-23, AC-24 y AC-26 PASS. AC-25 FAIL por un contraste de 4.40:1 (QA-007). Además, una incoherencia tras un rechazo tardío (QA-008). Producción BLOCKED: el proxy no la alcanza | Informe Testing #7 | #10 |
 | 8 | 2026-11-23 | 4 | develop | E2E versionado con Playwright (AC-31), README (AC-32), auditoría de dependencias (SEC-05 en `docs/SECURITY.md`) y SEC-04 | Entregado en el commit `1c1f831`. lint, typecheck, test 56/56, test:rules 34/34, test:e2e 5/5 y build OK. El E2E destapó QA-006 y quedó corregido en el mismo commit. npm audit sigue con 4 altos, justificados (grpc-js, sin versión que lo corrija) | Entrega Develop Fase 4 | #10 |
 | 9 | 2026-11-23 | 3 | develop | Corregir QA-007 (contraste) y QA-008 (rechazo tardío) | Entregado en el commit `29551b7`. Badge con contraste de 6.47:1. Avisos acumulables que nombran la misión, "Restaurar en el formulario" y texto neutro si hay conexión. lint, typecheck, test 67/67, test:rules 34/34, test:e2e 6/6 (nuevo `late-rejection.spec.ts`) y build OK | Entrega Develop QA-007/008 | #10 |
+| 10 | 2026-11-23 | 4 | testing | Revisión final de la Fase 4 y retest de QA-006 a QA-008, en un clon limpio | **BLOCKED, sin FAIL** en los criterios vigentes. QA-006, QA-007 (contraste 6.44:1; mínimo global 5.22:1) y QA-008, también con red lenta: PASS. AC-04, AC-30 a AC-33 y SEC-01/04/05: PASS. Regresión: test 67/67, test:rules 34/34, test:e2e 6/6. Propuso AC-NEW-06 con QA-009 y QA-010. Producción (AC-34, Google, AC-36) BLOCKED desde el contenedor | Informe Testing #10 | Pendiente: #12 |
 
 ## Hallazgos y correcciones
 
@@ -25,20 +26,24 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-003 | baja | AC-22, SEC-02 | Un título formado solo por espacios pasa las reglas (L11) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | `70af2de` | PASS (#7) |
 | QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | `70af2de` | PASS (#7) |
-| QA-006 | media | AC-10b | Al cerrar sesión y volver a entrar sin recargar, el botón "Cerrando…" se quedaba deshabilitado. Lo detectó el E2E de Develop en la Fase 4 | #8 | `1c1f831` (`SignedInBar` con `key=uid`) | Pendiente: #10 |
-| QA-007 | baja | AC-25 | En modo oscuro, el badge "+N XP ganados" tiene un contraste de 4.40:1 (`QuestItem.tsx` L95) | #7 | `29551b7` | Pendiente: #10 |
-| QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | `29551b7` | Pendiente: #10 |
+| QA-006 | media | AC-10b | Al cerrar sesión y volver a entrar sin recargar, el botón "Cerrando…" se quedaba deshabilitado. Lo detectó el E2E de Develop en la Fase 4 | #8 | `1c1f831` (`SignedInBar` con `key=uid`) | PASS (#10) |
+| QA-007 | baja | AC-25 | En modo oscuro, el badge "+N XP ganados" tiene un contraste de 4.40:1 (`QuestItem.tsx` L95) | #7 | `29551b7` | PASS (#10) |
+| QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | `29551b7` | PASS (#10) |
+| QA-009 | baja | AC-28 | El texto que se escribe mientras "Creando…" sigue en curso se borra al terminar el envío (`QuestForm.tsx`, `resetOnSuccess`) | #10 | Pendiente | — |
+| QA-010 | baja | AC-28 | "Restaurar en el formulario" sustituye sin avisar el borrador que haya en curso (`Dashboard.tsx`, `restoreCreation`) | #10 | Pendiente | — |
 
 ## Avisos abiertos
 
-- SEC-05: `npm audit --omit=dev` muestra 4 altos en `@grpc/grpc-js`, que entra por `@firebase/firestore`. Testing comprobó que no está en el bundle de cliente. Hay que justificarlo en la Fase 4.
+- SEC-05: justificado en `docs/SECURITY.md` y aceptado por Testing en #10. Quedan 4 altos en `@grpc/grpc-js`, que no está en el bundle de cliente y para el que no hay versión de firebase que lo corrija.
 - AC-36 (antes AC-NEW-05): firebase 13 pide Node ≥24.12, así que hay que declarar `engines` y usar Node 24 en Vercel.
 
-- AC-26 (observación de #5): `addDoc`/`updateDoc` esperan la confirmación del servidor, así que sin conexión el botón se quedaría en "Creando…" para siempre. Se revisa en la Fase 3.
+- AC-26 (observación de #5): resuelto en la Fase 3 con una espera máxima de 1,5 s y el estado "pendiente de sincronizar". Testing lo verificó en #7 y #10.
 
 - Numeración: Testing propuso QA-006 y QA-007 en #7, pero el Orquestador ya había asignado QA-006 al defecto que encontró Develop en #8. Los dos de Testing quedan registrados como QA-007 y QA-008.
 
 ## Cambios en los criterios
+
+- Tras el informe #10 se añade AC-28 (antes AC-NEW-06): el formulario nunca descarta sin avisar el texto del usuario.
 
 - Tras el informe #1, el Orquestador incorporó a `testing.md` los criterios propuestos por Testing: AC-06 (antes AC-NEW-04), AC-18 (AC-NEW-02), AC-27 (AC-NEW-03) y AC-35 (AC-NEW-01). También precisó SEC-02, AC-11 y AC-12.
 - 2026-11-23: a petición de Ricardo, la autenticación anónima se sustituye por Email/Contraseña y Google Sign-in en el proyecto `questflow-5446d`. Se reescribió AC-10 y se añadieron AC-10b, AC-10c y SEC-06. También se añadió AC-36 (Node 24).

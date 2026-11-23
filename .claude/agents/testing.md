@@ -64,6 +64,7 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 - **AC-23** Estados Loading, Empty (por filtro también) y Error (config, auth, Firestore) visibles y distinguibles.
 - **AC-24** Responsive: usable a 360 px y en escritorio, sin scroll horizontal.
 - **AC-25** Accesibilidad básica: `label` en cada campo, botones con nombre accesible, foco visible, `lang` en `<html>`, errores anunciados (`role="alert"`/`aria-live`).
+- **AC-28** El formulario nunca descarta sin avisar texto que el usuario haya escrito (durante un envío, o al restaurar una misión rechazada).
 - **AC-27** Con 0 misiones las estadísticas muestran 0 y 0 % (nunca NaN).
 - **AC-26** Operaciones en curso deshabilitan el botón correspondiente o muestran feedback; los errores de escritura se muestran al usuario.
 
