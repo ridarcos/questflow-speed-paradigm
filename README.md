@@ -146,6 +146,7 @@ Cubre lo siguiente:
 - `route-profile.spec.ts`: `aria-label` del perfil al completar, reabrir, crear, cambiar terreno y borrar. También el extremo del tramo recorrido, la animación al completar (y ninguna con reduced motion) y títulos con HTML mostrados como texto.
 - `responsive.spec.ts`: a 360, 768 y 1280 px, sin scroll horizontal con las misiones de ejemplo y con el tutorial abierto. En cada paso, el diálogo cabe entero y no tapa del todo su destino.
 - `contrast.spec.ts`: en claro y oscuro, a 1024 y 1280 px, cada texto que queda encima del mapa del acceso conserva 4,5:1 frente a las curvas, y el trazo no pasa de 1,5:1 contra `paper`. Además, a 360, 768 y 1280 px, ningún tramo de curva de nivel del perfil queda a menos de 2 px del contorno de un hito, y ese contorno conserva 3:1 frente al relieve y a `surface`. Los colores los resuelve el navegador.
+- `milestones.spec.ts` (AC-70): rutas de 4, 17, 40 y 60 misiones, preparadas por REST, a 360 px, y de 60 a 768 y 1280 px, en claro y oscuro. Se mide por píxeles sobre una captura a 1x. Dentro del hueco central, cada completado tiene algo a 3:1 o más de `surface` (check o núcleo) y cada activo está hueco. También se completa y se reabre una misión desde su tarjeta con 40 en la ruta.
 
 Antes de la primera ejecución, instala el navegador con `npx playwright install chromium`. Si tu entorno ya trae un Chromium que no coincide con la versión de Playwright, indica su ruta:
 

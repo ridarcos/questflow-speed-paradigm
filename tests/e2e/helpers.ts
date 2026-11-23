@@ -186,6 +186,53 @@ export async function storedQuests(request: APIRequestContext, uid: string): Pro
     .sort((a, b) => timestampKey(a.createdAt).localeCompare(timestampKey(b.createdAt)));
 }
 
+export interface RouteQuest {
+  difficulty: "easy" | "medium" | "hard";
+  completed: boolean;
+}
+
+/**
+ * Deja en `uid` exactamente las misiones `quests`, en ese orden de creación,
+ * escribiendo por REST como administrador del emulador (un solo commit). Sirve
+ * para preparar rutas largas (40 o 60 hitos) sin pasar 60 veces por el
+ * formulario. Los documentos llevan solo los 6 campos de la app (AC-11), así
+ * que la app los lee igual que los suyos.
+ */
+export async function replaceQuestsByRest(
+  request: APIRequestContext,
+  uid: string,
+  quests: readonly RouteQuest[],
+): Promise<void> {
+  const documents = `projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}/quests`;
+  const ids = quests.map((_, i) => `ruta-${String(i).padStart(3, "0")}`);
+  const start = Date.parse("2026-01-01T09:00:00Z");
+  const stale = (await storedQuests(request, uid)).filter((quest) => !ids.includes(quest.id));
+  const writes = [
+    ...stale.map((quest) => ({ delete: `${documents}/${quest.id}` })),
+    ...quests.map((quest, i) => {
+      const at = new Date(start + i * 60_000).toISOString();
+      return {
+        update: {
+          name: `${documents}/${ids[i]}`,
+          fields: {
+            title: { stringValue: `Misión ${i + 1}` },
+            description: { stringValue: "" },
+            difficulty: { stringValue: quest.difficulty },
+            completed: { booleanValue: quest.completed },
+            createdAt: { timestampValue: at },
+            updatedAt: { timestampValue: at },
+          },
+        },
+      };
+    }),
+  ];
+  const res = await request.post(`${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit`, {
+    headers: { Authorization: "Bearer owner" },
+    data: { writes },
+  });
+  expect(res.ok()).toBeTruthy();
+}
+
 /** Reglas que dejan leer al dueño pero deniegan toda escritura. */
 export const DENY_WRITES_RULES = `rules_version = '2';
 service cloud.firestore {

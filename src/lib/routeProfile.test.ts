@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DIFFICULTIES, type Difficulty } from "./quests";
 import {
+  CHECK_MIN_RADIUS,
+  CHECK_STROKE,
+  checkPath,
   computeRouteProfile,
+  DONE_STROKE,
+  dotRadius,
   LEVEL_CLEARANCE,
   levelSegments,
+  milestoneShape,
   orderForProfile,
+  RING_STROKE,
   routeProfileLabel,
   type LevelSegment,
   type ProfileQuest,
@@ -260,6 +267,84 @@ describe("curvas de nivel cortadas alrededor de los hitos (QA-015)", () => {
     }
     // La comprobación no es vacía: en estas rutas hay curvas que cruzaban hitos.
     expect(cut).toBeGreaterThan(0);
+  });
+});
+
+describe("forma de los hitos: completados distinguibles sin color (AC-70)", () => {
+  /** Distancia máxima al centro de los vértices del check, más medio trazo. */
+  function checkReach(r: number): number {
+    const values = numbersIn(checkPath({ x: 0, y: 0, r }));
+    let reach = 0;
+    for (let i = 0; i < values.length; i += 2) reach = Math.max(reach, Math.hypot(values[i], values[i + 1]));
+    return reach + CHECK_STROKE / 2;
+  }
+  /** Radio del disco de marker que deja libre el borde contour. */
+  const markerDisc = (r: number) => r - DONE_STROKE / 2;
+
+  it("un activo siempre es un anillo; un completado, check si cabe y núcleo si no", () => {
+    for (const r of [2.5, 3.3, 3.99, 4, 4.9, 7]) expect(milestoneShape(false, r)).toBe("ring");
+    for (const r of [4, 4.44, 4.9, 6.65, 7]) expect(milestoneShape(true, r)).toBe("check");
+    for (const r of [2.5, 3, 3.3, 3.53, 3.99]) expect(milestoneShape(true, r)).toBe("dot");
+  });
+
+  it("el check cabe dentro del disco de marker desde CHECK_MIN_RADIUS y por debajo ya no", () => {
+    for (const r of [CHECK_MIN_RADIUS, 4.44, 5, 6, 7]) expect(checkReach(r)).toBeLessThanOrEqual(markerDisc(r));
+    // El umbral no es arbitrario: un poco por debajo, el check tocaría el borde.
+    expect(checkReach(3.8)).toBeGreaterThan(markerDisc(3.8));
+  });
+
+  it("el trazo del check conserva su forma y posición", () => {
+    expect(checkPath({ x: 10, y: 20, r: 5 })).toBe("M7.9 20.1 L9.5 21.7 L12.2 18.5");
+  });
+
+  it("el núcleo nunca baja de 0,75 px y deja siempre un anillo de marker visible", () => {
+    for (const r of [2.5, 2.8, 3, 3.3, 3.53, 3.99]) {
+      const core = dotRadius(r);
+      expect(core).toBeGreaterThanOrEqual(0.75);
+      expect(markerDisc(r) - core).toBeGreaterThanOrEqual(0.74);
+    }
+    expect(dotRadius(2.5)).toBe(0.75);
+    expect(dotRadius(3.99)).toBe(1.5);
+  });
+
+  it("en el círculo central donde el completado tiene núcleo, el activo es hueco (su borde queda a más de 0,5 px)", () => {
+    for (const r of [2.5, 3, 3.99]) expect(r - RING_STROKE / 2).toBeGreaterThan(dotRadius(r) + 0.5);
+  });
+
+  it("con 4, 17, 40 y 60 misiones a 360, 768 y 1280 px ningún completado queda sin marca de forma", () => {
+    // Anchos reales del SVG en esos viewports (medidos con Playwright: 294, 670 y 902–917 px).
+    const widths = [
+      { width: 294, height: 112 },
+      { width: 670, height: 128 },
+      { width: 902, height: 160 },
+      { width: 917, height: 160 },
+    ];
+    const seen = new Map<string, string>();
+    for (const count of [4, 17, 40, 60]) {
+      const list = Array.from({ length: count }, (_, i) =>
+        quest(`q${i + 1}`, { difficulty: DIFFICULTIES[i % 3] as Difficulty, completed: i % 4 === 0 }),
+      );
+      for (const size of widths) {
+        const geometry = computeRouteProfile(list, size);
+        const completed = geometry.milestones.filter((m) => m.completed);
+        expect(completed.length).toBeGreaterThan(0);
+        for (const m of geometry.milestones) {
+          expect(m.shape).toBe(milestoneShape(m.completed, m.r));
+          if (!m.completed) continue;
+          expect(m.shape).not.toBe("ring");
+          if (m.shape === "check") expect(checkReach(m.r)).toBeLessThanOrEqual(markerDisc(m.r));
+          else expect(dotRadius(m.r)).toBeLessThan(markerDisc(m.r));
+        }
+        seen.set(`${size.width}/${count}`, completed[0].shape);
+      }
+    }
+    // Los dos casos aparecen en la matriz: check a 360 px con 17 y núcleo con 40 y 60.
+    expect(seen.get("294/17")).toBe("check");
+    expect(seen.get("294/40")).toBe("dot");
+    expect(seen.get("294/60")).toBe("dot");
+    expect(seen.get("670/40")).toBe("check");
+    expect(seen.get("670/60")).toBe("dot");
+    expect(seen.get("902/60")).toBe("check");
   });
 });
 
