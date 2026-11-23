@@ -16,6 +16,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 8 | 2026-11-23 | 4 | develop | E2E versionado con Playwright (AC-31), README (AC-32), auditoría de dependencias (SEC-05 en `docs/SECURITY.md`) y SEC-04 | Entregado en el commit `1c1f831`. lint, typecheck, test 56/56, test:rules 34/34, test:e2e 5/5 y build OK. El E2E destapó QA-006 y quedó corregido en el mismo commit. npm audit sigue con 4 altos, justificados (grpc-js, sin versión que lo corrija) | Entrega Develop Fase 4 | #10 |
 | 9 | 2026-11-23 | 3 | develop | Corregir QA-007 (contraste) y QA-008 (rechazo tardío) | Entregado en el commit `29551b7`. Badge con contraste de 6.47:1. Avisos acumulables que nombran la misión, "Restaurar en el formulario" y texto neutro si hay conexión. lint, typecheck, test 67/67, test:rules 34/34, test:e2e 6/6 (nuevo `late-rejection.spec.ts`) y build OK | Entrega Develop QA-007/008 | #10 |
 | 10 | 2026-11-23 | 4 | testing | Revisión final de la Fase 4 y retest de QA-006 a QA-008, en un clon limpio | **BLOCKED, sin FAIL** en los criterios vigentes. QA-006, QA-007 (contraste 6.44:1; mínimo global 5.22:1) y QA-008, también con red lenta: PASS. AC-04, AC-30 a AC-33 y SEC-01/04/05: PASS. Regresión: test 67/67, test:rules 34/34, test:e2e 6/6. Propuso AC-NEW-06 con QA-009 y QA-010. Producción (AC-34, Google, AC-36) BLOCKED desde el contenedor | Informe Testing #10 | Pendiente: #12 |
+| 11 | 2026-11-23 | 4 | develop | Corregir QA-009 y QA-010 (AC-28), texto de permission-denied y README | Entregado en el commit `8692f34`. test 78/78, test:rules 34/34, test:e2e 7/7 (nuevo test de QA-009), lint, typecheck y build OK | Entrega Develop QA-009/010 | Pendiente: #12 |
 
 ## Hallazgos y correcciones
 
@@ -29,8 +30,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-006 | media | AC-10b | Al cerrar sesión y volver a entrar sin recargar, el botón "Cerrando…" se quedaba deshabilitado. Lo detectó el E2E de Develop en la Fase 4 | #8 | `1c1f831` (`SignedInBar` con `key=uid`) | PASS (#10) |
 | QA-007 | baja | AC-25 | En modo oscuro, el badge "+N XP ganados" tiene un contraste de 4.40:1 (`QuestItem.tsx` L95) | #7 | `29551b7` | PASS (#10) |
 | QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | `29551b7` | PASS (#10) |
-| QA-009 | baja | AC-28 | El texto que se escribe mientras "Creando…" sigue en curso se borra al terminar el envío (`QuestForm.tsx`, `resetOnSuccess`) | #10 | Pendiente | — |
-| QA-010 | baja | AC-28 | "Restaurar en el formulario" sustituye sin avisar el borrador que haya en curso (`Dashboard.tsx`, `restoreCreation`) | #10 | Pendiente | — |
+| QA-009 | baja | AC-28 | El texto que se escribe mientras "Creando…" sigue en curso se borra al terminar el envío (`QuestForm.tsx`, `resetOnSuccess`) | #10 | `8692f34` | Pendiente: #12 |
+| QA-010 | baja | AC-28 | "Restaurar en el formulario" sustituye sin avisar el borrador que haya en curso (`Dashboard.tsx`, `restoreCreation`) | #10 | `8692f34` | Pendiente: #12 |
 
 ## Avisos abiertos
 
