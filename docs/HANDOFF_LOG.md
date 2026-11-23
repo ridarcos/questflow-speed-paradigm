@@ -10,7 +10,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 2 | 2026-11-23 | 1 | develop | Bootstrap Next.js + Tailwind + Firebase, UI básica y corrección de QA-001 a QA-003 | Entregado en el commit `c4062da`. lint, typecheck, test (8/8) y build OK sin `.env.local`. Avisos: npm audit muestra 4 altos (grpc-js transitivo) y firebase 13 pide Node ≥24.12 | Entrega Develop Fase 1 | #3 |
 | 3 | 2026-11-23 | 1 | testing | Revisión independiente de la Fase 1 y retest de QA-001 a QA-003 | **PASS** en AC-01 a AC-06, AC-17, SEC-01 y SEC-02. 29 casos de reglas en el emulador de Firestore, 0 fallos. Playwright: 0 errores de consola y sin scroll horizontal a 360 px | Informe Testing #3 (clon limpio en /tmp) | QA-001 a QA-003 cerrados |
 | 4 | 2026-11-23 | 2 | develop | Login con Email/Contraseña y Google, CRUD en `users/{uid}/quests`, estadísticas, filtros, emuladores y tests de reglas | Entregado en el commit `292512a`. lint, typecheck, test 39/39, test:rules 34/34 y build OK. La prueba de mutación de las reglas hizo fallar 2 tests, como se esperaba. El smoke con Playwright y emuladores pasó. Google no se probó de verdad | Entrega Develop Fase 2 | #5 |
-| 5 | 2026-11-23 | 2 | testing | Revisión independiente de la Fase 2 en un clon limpio, con E2E propio (Playwright + emuladores de Auth y Firestore) y dos usuarios | **BLOCKED, sin FAIL**. Todos los criterios comprobables pasan: E2E 54 de 55 (el restante eran 400 esperados de las pruebas negativas), test:rules 34/34 y aislamiento A/B por REST (403 en la ruta ajena, 200 en la propia). Quedan BLOCKED hasta producción Google real (AC-10), producción (AC-16) y Node 24 en Vercel (AC-36). Defectos nuevos QA-004 y QA-005 | Informe Testing #5 | Pendiente: Fase 3 |
+| 5 | 2026-11-23 | 2 | testing | Revisión independiente de la Fase 2 en un clon limpio, con E2E propio (Playwright + emuladores de Auth y Firestore) y dos usuarios | **BLOCKED, sin FAIL**. Todos los criterios comprobables pasan: E2E 54 de 55 (el restante eran 400 esperados de las pruebas negativas), test:rules 34/34 y aislamiento A/B por REST (403 en la ruta ajena, 200 en la propia). Quedan BLOCKED hasta producción Google real (AC-10), producción (AC-16) y Node 24 en Vercel (AC-36). Defectos nuevos QA-004 y QA-005 | Informe Testing #5 | #7 |
+| 6 | 2026-11-23 | 3 | develop | Corregir QA-004 y QA-005; AC-22 a AC-26 (estados, validación, responsive, accesibilidad, escrituras sin conexión) | Entregado en el commit `70af2de`. lint, typecheck, test 56/56, test:rules 34/34 y build OK. Smoke con Playwright y emuladores 39/39, incluidos modo sin conexión, reglas que rechazan escrituras y foco tras borrar | Entrega Develop Fase 3 | Pendiente: #7 |
 
 ## Hallazgos y correcciones
 
@@ -19,8 +20,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-001 | media | SEC-02 | En `create`, `createdAt` y `updatedAt` aceptan cualquier timestamp; no se exige `request.time` (`firestore.rules` L15, L18) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-002 | media | SEC-02, AC-13, AC-14 | En `update` no se exige `updatedAt == request.time` (L19-20) | #1 | `c4062da` | PASS (#3, emulador) |
 | QA-003 | baja | AC-22, SEC-02 | Un título formado solo por espacios pasa las reglas (L11) | #1 | `c4062da` | PASS (#3, emulador) |
-| QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | Pendiente | — |
-| QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | Pendiente | — |
+| QA-004 | baja | AC-10c | Un error de `getRedirectResult` que llega después de montar `AuthScreen` no se muestra, porque `initialError` solo se copia a `useState` al montar. Además, `error` sobrevive al cerrar sesión | #5 | `70af2de` | Pendiente: #7 |
+| QA-005 | baja | AC-25 | Tras confirmar un borrado, el foco queda en `<body>` (`Dashboard.tsx`, `confirmDelete`) | #5 | `70af2de` | Pendiente: #7 |
 
 ## Avisos abiertos
 
