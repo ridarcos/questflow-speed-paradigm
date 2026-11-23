@@ -42,6 +42,8 @@ Reglas de contraste (WCAG AA en ambos temas):
 - El foco visible es un contorno de 2 px en `contour` con separación de 2 px. Los hitos completados se rellenan de `marker` con contorno `contour` y una marca de check, para no depender del amarillo sobre `paper` claro (QA-013).
 - El texto de los botones sobre `contour` es `paper`, nunca blanco.
 - `ink` al 10 % solo vale para bordes decorativos de tarjetas.
+- El borde del tutorial usa `line` y el de las alertas `danger`.
+- Las curvas decorativas (mapa del acceso y relieve del perfil) no pueden bajar de 4.5:1 el texto que pase por encima ni de 3:1 el contorno de los hitos (QA-014 y QA-015).
 
 ## Tipografía
 

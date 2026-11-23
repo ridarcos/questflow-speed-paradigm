@@ -22,6 +22,7 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | 14 | 2026-11-23 | prod | orquestador + Ricardo | Verificación final en producción tras fusionar el PR #1 en `main` | Vercel sirve en producción el commit de `main` `eb02ab3` en https://questflow-speed-paradigm-sandy.vercel.app (alias de producción, `ssoProtection` desactivada). El Orquestador pidió una prueba en incógnito con una cuenta de prueba: registro, crear una misión, recargar y Google. Ricardo confirmó el 2026-11-23 a las 17:02 UTC que «todo funciona» en producción. Esta comprobación la hizo una persona; los agentes no pudieron observarla desde el contenedor | `get_deployment` de Vercel (ref `main`, sha `eb02ab3`) + confirmación escrita de Ricardo | Cierra AC-34, AC-10 (Google), AC-16 y AC-36 |
 | 15 | 2026-11-23 | 5 | testing | Analizar el alcance del rediseño v2 (petición de Ricardo: UI/UX completa, misiones precreadas y tutorial), proponer criterios observables y medir la paleta de `docs/DESIGN_DIRECTION.md` antes de implementar | Propuso AC-50 a AC-69 y SEC-07 a SEC-10, con método de verificación por criterio. Midió los contrastes: 3 defectos en la dirección de diseño, QA-011 a QA-013 (amarillo con texto claro en oscuro 1.56:1, texto de Sendero 3.93:1 y Ladera 4.12:1 en claro, foco/hitos en amarillo 1.67:1). Sin cambios en el repo | Informe Testing #15 | El Orquestador corrigió la paleta en `DESIGN_DIRECTION.md` (`6ea9878`); se verifica en #17 |
 | 16 | 2026-11-23 | 5 | develop | Implementar el rediseño v2 (AC-50 a AC-69, SEC-07 a SEC-10): sistema visual, perfil de ruta, acceso, terreno, misiones de ejemplo, tutorial y pruebas | Entregado en `bae5d8a`, `6998eb9` y `27f3bcc`. lint y typecheck OK, test 156/156, test:rules 34/34, test:e2e 21/21 (14 nuevos), build sin `.env.local` OK y `npm audit` sin altos nuevos. `firestore.rules` sin cambios. BLOCKED: Google por popup/redirect (el contenedor no alcanza `apis.google.com`). `unshare -n npm run build` literal falla porque el namespace arranca con `lo` apagado (Turbopack usa 127.0.0.1); con `lo` levantado y sin red exterior pasa. La variante sin conexión de AC-62 solo se probó con un script propio | Entrega Develop Fase 5 | #17 |
+| 17 | 2026-11-23 | 5 | testing | Revisión independiente de la Fase 5 en un clon limpio y retest de QA-011 a QA-013. Matriz propia de 160 estados (claro/oscuro, 360/768/1280, E1–E9) con contraste medido por píxeles, foco por teclado, axe-core, recuentos REST en `next start` y `next dev`, y 4 pruebas de mutación | **FAIL** solo por AC-53: QA-014 y QA-015. El resto de AC-50 a AC-69 y SEC-07 a SEC-10 PASS; QA-011, QA-012 y QA-013 PASS. Reprodujo las cifras de Develop: test 156/156, test:rules 34/34, test:e2e 21/21, build OK, 0 violaciones axe. Las 4 mutaciones mueren. BLOCKED: Google (el proxy deniega `apis.google.com` con 403) | Informe Testing #17 | #19 |
 
 ## Resultado final de la v1 (PR #1)
 
@@ -45,9 +46,11 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 | QA-008 | baja | AC-26 | Un rechazo tardío deja visible "Misión creada…" junto a "Error de sincronización". El banner es genérico y no dice qué misión falló, un segundo rechazo sobrescribe al primero y el texto de la creación se pierde. El mensaje "al recuperar la conexión" también sale aunque la conexión solo sea lenta (`Dashboard.tsx` L123-125, `QuestForm.tsx` L104-110) | #7 | `29551b7` | PASS (#10) |
 | QA-009 | baja | AC-28 | El texto que se escribe mientras "Creando…" sigue en curso se borra al terminar el envío (`QuestForm.tsx`, `resetOnSuccess`) | #10 | `8692f34` | PASS (#12) |
 | QA-010 | baja | AC-28 | "Restaurar en el formulario" sustituye sin avisar el borrador que haya en curso (`Dashboard.tsx`, `restoreCreation`) | #10 | `8692f34` | PASS (#12) |
-| QA-011 | media | AC-53, AC-25 | La dirección de diseño pone texto `ink` sobre `marker`; en oscuro da 1.56:1 | #15 | Token `on-marker` #1B2A26 en ambos temas (`6ea9878`) | Pendiente (#17) |
-| QA-012 | media | AC-53 | `trail` (3.93:1) y `slope` (4.12:1) no sirven como texto sobre `paper` claro | #15 | Texto de terreno en `ink`; los colores de terreno solo en iconos y bordes (`6ea9878`) | Pendiente (#17) |
-| QA-013 | media | AC-53, AC-25 | Foco e hitos completados en `marker` sobre `paper` claro dan 1.67:1 (< 3:1) | #15 | Foco con contorno `contour` de 2 px; hitos con contorno `contour` y check (`6ea9878`) | Pendiente (#17) |
+| QA-011 | media | AC-53, AC-25 | La dirección de diseño pone texto `ink` sobre `marker`; en oscuro da 1.56:1 | #15 | Token `on-marker` #1B2A26 en ambos temas (`6ea9878`) | PASS (#17) |
+| QA-012 | media | AC-53 | `trail` (3.93:1) y `slope` (4.12:1) no sirven como texto sobre `paper` claro | #15 | Texto de terreno en `ink`; los colores de terreno solo en iconos y bordes (`6ea9878`) | PASS (#17) |
+| QA-013 | media | AC-53, AC-25 | Foco e hitos completados en `marker` sobre `paper` claro dan 1.67:1 (< 3:1) | #15 | Foco con contorno `contour` de 2 px; hitos con contorno `contour` y check (`6ea9878`) | PASS (#17) |
+| QA-014 | media | AC-53 | En tema claro, desde 1024 px, el texto secundario del acceso queda sobre las curvas del mapa a 4.39–4.48:1 (`ContourMap.tsx:28`, trazo `contour/25`) | #17 | Pendiente | Pendiente |
+| QA-015 | baja | AC-53 | El contorno del hito Sendero queda a 2.93:1 donde lo cruza una curva de nivel del perfil de ruta (`RouteProfile.tsx:177-184`, `stroke-contour/20`) | #17 | Pendiente | Pendiente |
 
 ## Avisos y notas
 
@@ -58,6 +61,8 @@ Registro mantenido por el Orquestador. Cada fila corresponde a una delegación e
 - Numeración: Testing propuso QA-006 y QA-007 en #7, pero el Orquestador ya había asignado QA-006 al defecto que encontró Develop en #8. Los dos de Testing quedan registrados como QA-007 y QA-008.
 
 ## Cambios en los criterios
+
+- Tras el informe #17, a propuesta de Testing: la verificación de AC-51 sin red pasa a ser `unshare -n` con solo la interfaz `lo` levantada (Turbopack usa 127.0.0.1); AC-52 aclara que las curvas de nivel dentro del perfil de ruta son decoración permitida y que el tope de 1,5:1 aplica solo al patrón del acceso; SEC-07 anota como excepción del SDK la petición a `www.google.com/images/cleardot.gif` sin conexión.
 
 - Tras el informe #15 se añade la Fase 5 (rediseño v2) a `testing.md`: AC-50 a AC-69 y SEC-07 a SEC-10, tal como los propuso Testing.
 
