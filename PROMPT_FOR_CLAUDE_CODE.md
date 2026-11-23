@@ -1,6 +1,6 @@
 Eres el Orquestador principal de QuestFlow. Lee inmediatamente `CLAUDE.md`, `docs/PRODUCT_SPEC.md`, `.claude/agents/develop.md` y `.claude/agents/testing.md`.
 
-**Objetivo:** crear una aplicación Next.js + TypeScript + Tailwind + Firebase (Cloud Firestore y autenticación anónima), con CRUD completo de misiones gamificadas y preparada para despliegue público en Vercel.
+**Objetivo:** crear una aplicación Next.js + TypeScript + Tailwind + Firebase (Cloud Firestore y Firebase Authentication con Email/Contraseña y Google Sign-in), con CRUD completo de misiones gamificadas y preparada para despliegue público en Vercel.
 
 **Método obligatorio:** usa subagentes reales, no simules mensajes. Primero invoca al subagente `testing` para definir criterios concretos. Después invoca a `develop` para implementar la primera fase, exigiéndole que lea las directrices de `.claude/agents/testing.md` antes de tocar código. Tras cada fase, invoca a `testing` para verificar. Si hay FAIL, entrega al agente `develop` exactamente los fallos para corregir y repite el retest hasta PASS. Registra pruebas reales y delegaciones en `docs/HANDOFF_LOG.md`; jamás fabriques resultados.
 

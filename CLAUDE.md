@@ -16,7 +16,7 @@ Tu rol es Orquestador. Tu objetivo es entregar una aplicación real de Next.js, 
 - Antes de la primera implementación, solicita a Testing que analice el alcance y proponga criterios de prueba específicos. Develop debe recibir esos criterios y leer `.claude/agents/testing.md`.
 - Divide el trabajo en entregables pequeños y verificables:
   1. Bootstrap Next.js / Firebase, interfaz básica y reglas Firestore.
-  2. Persistencia real, aislamiento de datos por usuario anónimo, CRUD.
+  2. Persistencia real, autenticación Email/Contraseña + Google, aislamiento de datos por UID, CRUD.
   3. Diseño responsive, validación y estados de error/carga.
   4. Pruebas, revisión de seguridad y documentación de despliegue.
 - Tras **cada** entrega de Develop, delega a Testing la revisión. Si responde FAIL, vuelve a delegar en Develop el defecto exacto y solicita nueva revisión de Testing. No declares PASS por tu cuenta.
@@ -29,7 +29,7 @@ Tu rol es Orquestador. Tu objetivo es entregar una aplicación real de Next.js, 
 
 - `npm run lint`, `npx tsc --noEmit`, `npm run build`, pruebas unitarias y E2E pasan, o se documentan bloqueos con causa concreta.
 - App permite crear, completar, editar y eliminar misiones persistidas en Firestore.
-- Cada visitante usa sesión Firebase anónima. Las reglas de Firestore impiden acceso cruzado entre usuarios.
+- Cada usuario inicia sesión con Email/Contraseña o Google (Firebase Auth, proyecto `questflow-5446d`). Las reglas de Firestore impiden acceso cruzado entre usuarios.
 - UI es usable en móvil y escritorio, con accesibilidad básica, estados de error/vacío/carga.
 - README explica setup, variables de entorno, reglas de Firestore y despliegue.
 - Verificación manual de producción en incógnito sin login Vercel. **No afirmar despliegue hasta comprobar una URL real.**

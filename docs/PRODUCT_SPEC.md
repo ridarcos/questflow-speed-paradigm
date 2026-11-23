@@ -6,10 +6,13 @@ Aplicación pública que permite a cualquier visitante organizar misiones person
 
 ## Usuario principal
 
-Visitante que abre por primera vez la URL en una ventana de incógnito, sin cuenta ni suscripción. Firebase Auth crea una identidad anónima y los datos se separan por UID.
+Visitante que abre la URL pública en una ventana de incógnito. Se registra o inicia sesión con **email y contraseña** o con **Google** (Firebase Authentication, proyecto `questflow-5446d`), y sus misiones quedan separadas por UID.
+
+> Cambio solicitado por Ricardo el 2026-11-23: sustituye la autenticación anónima de la v1 por Email/Contraseña y Google Sign-in.
 
 ## Alcance del MVP
 
+0. Pantalla de acceso: registro e inicio de sesión con email/contraseña y botón "Continuar con Google"; cerrar sesión.
 1. Dashboard atractivo con título, contador de misiones, completadas y XP.
 2. Formulario de creación de misión: título requerido (1–80 caracteres), descripción opcional (máx. 280), dificultad Easy (10 XP), Medium (25 XP), Hard (50 XP).
 3. Listado de misiones con tarjeta, categoría visual/dificultad, XP y estado.
@@ -29,7 +32,7 @@ Visitante que abre por primera vez la URL en una ventana de incógnito, sin cuen
 ## Arquitectura esperada
 
 - Next.js App Router; componentes cliente solo donde sea necesario.
-- Firebase JS SDK: `getAuth` + `signInAnonymously` + `onAuthStateChanged`; `getFirestore` + `onSnapshot` + `addDoc` + `updateDoc` + `deleteDoc`.
+- Firebase JS SDK: `getAuth` + `createUserWithEmailAndPassword` / `signInWithEmailAndPassword` + `GoogleAuthProvider` / `signInWithPopup` + `signOut` + `onAuthStateChanged`; `getFirestore` + `onSnapshot` + `addDoc` + `updateDoc` + `deleteDoc`.
 - Ruta Firestore: `/users/{uid}/quests/{questId}`.
 - Variables públicas web Firebase en `.env.local` o variables de Vercel (no subir `.env.local`).
 - Reglas Firestore versionadas en el repositorio y publicadas en el proyecto Firebase.

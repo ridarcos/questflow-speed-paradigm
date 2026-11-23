@@ -44,7 +44,9 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 
 ### Fase 2 — Persistencia, aislamiento y CRUD
 
-- **AC-10** Al abrir la app sin sesión se ejecuta `signInAnonymously`; el UID se obtiene de `onAuthStateChanged`.
+- **AC-10** Autenticación con Firebase Auth (proyecto `questflow-5446d`) mediante **Email/Contraseña** (`createUserWithEmailAndPassword`, `signInWithEmailAndPassword`) y **Google** (`GoogleAuthProvider` + `signInWithPopup`, con `signInWithRedirect` como alternativa si el popup se bloquea). El UID se obtiene de `onAuthStateChanged`. No se usa autenticación anónima.
+- **AC-10b** Sin sesión, `/` muestra la pantalla de acceso (registro / inicio de sesión / Google) y nunca el dashboard ni datos. Con sesión, se ve el dashboard y un botón "Cerrar sesión" (`signOut`) que vuelve a la pantalla de acceso y cancela las suscripciones.
+- **AC-10c** Validación y errores de auth: email con formato válido, contraseña ≥ 6 caracteres; los códigos de Firebase (`auth/invalid-credential`, `auth/email-already-in-use`, `auth/weak-password`, `auth/popup-closed-by-user`, `auth/too-many-requests`, etc.) se traducen a mensajes claros en español con `role="alert"`; los botones se deshabilitan mientras la petición está en curso. Opcional: "¿Olvidaste tu contraseña?" con `sendPasswordResetEmail`.
 - **AC-11** Crear misión con `addDoc` en `users/{uid}/quests` con exactamente los campos `title, description, difficulty, completed, createdAt, updatedAt`; timestamps con `serverTimestamp()`. Sin descripción se envía `""`.
 - **AC-12** Listado en vivo con `onSnapshot`, ordenado con `orderBy('createdAt','desc')`; se cancela la suscripción al desmontar o cambiar de UID.
 - **AC-13** Editar título, descripción y dificultad con `updateDoc`, actualizando `updatedAt` y sin tocar `createdAt`.
@@ -72,7 +74,7 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 - **AC-35** Tests de reglas con `@firebase/rules-unit-testing` y el emulador (`npm run test:rules`) que cubren acceso cruzado, campos extra, timestamps y título vacío. Si el emulador no puede descargarse → BLOCKED con causa.
 - **AC-32** README con setup local, variables de entorno, publicación de reglas, despliegue en Vercel y prueba en incógnito.
 - **AC-33** `docs/HANDOFF_LOG.md` refleja delegaciones y resultados reales.
-- **AC-34** Producción: URL pública de Vercel abre en incógnito sin login de Vercel, crea una misión y la conserva tras recargar. Sin URL real → BLOCKED.
+- **AC-34** Producción: URL pública de Vercel abre en incógnito sin login de Vercel; se puede registrar una cuenta con email, crear una misión y conservarla tras recargar y tras cerrar e iniciar sesión. Google Sign-in funciona en el dominio de Vercel (añadido a dominios autorizados de Firebase Auth). Sin URL real → BLOCKED.
 
 ### Seguridad
 
@@ -80,6 +82,7 @@ Además: `git status --porcelain` y `git ls-files` para verificar que no hay sec
 - **SEC-02** Reglas Firestore: deniegan por defecto todo lo que no sea `/users/{uid}/quests/{questId}`; `request.auth.uid == userId` en lectura y escritura; validación de tipos, longitudes y `hasOnly` de campos; `createdAt` inmutable en `update`; `createdAt == request.time` y `updatedAt == request.time` en `create`; `updatedAt == request.time` en `update`; título con al menos un carácter no blanco; `difficulty` exactamente `easy|medium|hard` en minúscula.
 - **SEC-03** El cliente nunca lee ni escribe rutas de otro UID (la ruta se construye siempre con el UID de la sesión actual).
 - **SEC-04** No se usa `dangerouslySetInnerHTML` con contenido de usuario; no hay claves de LLM ni llamadas a APIs de IA.
+- **SEC-06** Dos cuentas distintas no ven ni modifican misiones de la otra (verificable con tests de reglas o dos sesiones reales).
 - **SEC-05** `npm audit --omit=dev` sin vulnerabilidades altas o críticas, o justificadas.
 
 ## Formato de informe
